@@ -38,11 +38,18 @@ de 10 s. Ver [docs/probar.md](probar.md#cómo-depurar).
 
 ### `./torneo` tarda mucho la primera vez. ¿Es normal?
 
-Sí. La primera vez descarga las imágenes de Docker y prepara numba: unos minutos. Si ves
+Sí. La primera vez construye las imágenes de Docker en tu máquina (la primera vez unos minutos) y
+prepara numba. Si ves
 `Preparando la caché de numba…`, espera: es normal (≈1 min). Después empieza en segundos.
 
 Además, cada partida dura hasta un minuto (30 s de reloj por bot). Mientras programas, usa
 `--partidas 1` o `--partidas 2` ([docs/probar.md](probar.md#cuánto-tarda)).
+
+### Algo raro con Docker o después de actualizar el sistema
+
+Corre `./torneo construir`: reconstruye desde cero, en tu máquina, las imágenes del torneo y la
+caché de numba (unos minutos). Normalmente no hace falta: `./torneo` reconstruye solo las
+imágenes cuando cambia `sistema/`.
 
 ### ¿Cómo actualizo el sistema cuando el curso publica una corrección?
 

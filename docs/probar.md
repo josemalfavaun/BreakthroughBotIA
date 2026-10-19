@@ -17,6 +17,7 @@ medir tiempos.
 | `./torneo liga <a> <b> <c> ...` | Liga todos contra todos entre los participantes que digas |
 | `./torneo repetir <archivo.json>` | Repite en la terminal una partida guardada en `resultados/` |
 | `./torneo visor <carpeta>` | Vuelve a generar el `index.html` de una carpeta de `resultados/` |
+| `./torneo construir` | Reconstruye desde cero las imágenes de Docker del torneo y la caché de numba (unos minutos). Úsalo si algo raro pasa con Docker o después de actualizar el sistema |
 | `./torneo --help` | Ayuda de todos los comandos (y `./torneo jugar --help`, etc.) |
 
 Ejemplos:
@@ -56,7 +57,8 @@ Cada bot tiene 30 s de reloj por partida, así que una partida puede durar hasta
 - **Para comparar dos versiones:** usa `--partidas 10` o más. Con pocas partidas, quién gana es
   sobre todo suerte de los dados.
 
-La primera vez tarda más: descarga las imágenes y prepara numba
+La primera vez tarda más: construye las imágenes en tu máquina (la primera vez unos minutos) y
+prepara numba
 ([docs/empezar.md](empezar.md#7-crea-tu-carpeta-y-juega-tu-primera-partida)).
 
 Para comparar dos versiones de tu bot, copia tu carpeta con otro nombre

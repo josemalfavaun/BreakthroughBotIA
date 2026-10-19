@@ -1,5 +1,9 @@
 # Entregar
 
+> [!IMPORTANT]
+> **Fechas: por definirse** (las anunciará el profesor): la hora límite para registrar el SHA,
+> el plazo del PR y dónde registrarlo.
+
 La entrega tiene **dos momentos**:
 
 1. **Antes de la hora límite:** registras el SHA del último commit de tu repo privado. Tu código
@@ -8,7 +12,7 @@ La entrega tiene **dos momentos**:
    **exactamente** como estaba en ese SHA y abres un *pull request* (PR).
 
 Así nadie puede ver código ajeno antes de la hora límite, y nadie puede cambiar su bot después.
-La fecha y hora límite las anuncia el profesor.
+**Fechas: por definirse** (las anunciará el profesor).
 
 > [!IMPORTANT]
 > **Tu pull request solo puede cambiar archivos dentro de tu carpeta,
@@ -95,7 +99,8 @@ solo muestran un aviso ⚠ si todavía tiene texto del ejemplo o es casi una cop
 
    También lo ves en GitHub: pestaña **Commits** de tu repo, botón para copiar el SHA completo.
 4. **Registra el SHA antes de la hora límite** donde indique el profesor, con el nombre de tu
-   equipo y el enlace a tu repo privado.
+   equipo y el enlace a tu repo privado. **Fechas: por definirse** (las anunciará el profesor,
+   junto con dónde registrar el SHA).
 5. **Comprueba que el profesor (`uumami`) tiene acceso a tu repo privado** (Settings →
    Collaborators). Lo usa para comparar tu PR con el SHA registrado.
 

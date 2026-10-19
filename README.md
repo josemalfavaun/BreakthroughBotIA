@@ -34,6 +34,7 @@ Reglas completas, con ejemplos resueltos: [docs/reglas.md](docs/reglas.md).
 > **Trabaja en un repo privado.** Un *fork* de un repo público es público: cualquiera vería tu
 > código. Crea tu repo con «Use this template» y márcalo **Private**. No compartas código ni
 > `data/` con otros equipos. El *fork* y el *pull request* se hacen **solo** el día de la entrega.
+> **Fechas: por definirse** (las anunciará el profesor); ver [docs/entregar.md](docs/entregar.md).
 
 1. **Crea tu repo privado.** Arriba en esta página: **Use this template → Create a new
    repository**, elige **Private** y clónalo en tu computadora (o ábrelo en Codespaces).
@@ -53,6 +54,7 @@ Reglas completas, con ejemplos resueltos: [docs/reglas.md](docs/reglas.md).
    ./torneo jugar <tu_equipo> montecarlo
    ```
 
+   La primera vez construye las imágenes de Docker en tu máquina (la primera vez unos minutos).
    Verás una tabla con las partidas y la ruta a un visor (`index.html`) para verlas jugada a
    jugada. Desde ahí, mejora tu `strategy.py`.
 

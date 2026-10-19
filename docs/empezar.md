@@ -208,8 +208,8 @@ jugar.
    ./torneo jugar los_alfa_beta montecarlo
    ```
 
-   **La primera vez tarda unos minutos antes de empezar:** descarga las imágenes de Docker y
-   prepara numba. Si ves `Preparando la caché de numba…`, espera: es normal (≈1 min). Las
+   **La primera vez tarda unos minutos antes de empezar:** construye las imágenes de Docker en
+   tu máquina (la primera vez unos minutos) y prepara numba. Si ves `Preparando la caché de numba…`, espera: es normal (≈1 min). Las
    siguientes veces empieza en segundos.
 
    Las 4 partidas tardan unos 2 a 4 minutos (cada bot tiene 30 s de reloj por partida). Al final
