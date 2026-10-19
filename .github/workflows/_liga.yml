@@ -130,7 +130,7 @@ jobs:
 
   imagenes:
     # Construye UNA vez, desde este checkout, las imágenes base y las de los participantes
-    # que instalan algo; los shards las cargan tal cual (nunca usan la :v1 de GHCR), así que
+    # que instalan algo; los shards las cargan tal cual (nunca construyen nada), así que
     # toda la liga corre exactamente el código de main al lanzarla. Misma máquina que los
     # shards (misma arquitectura).
     needs: [preparar]
