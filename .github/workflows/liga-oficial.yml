@@ -40,8 +40,8 @@ jobs:
     uses: ./.github/workflows/_liga.yml
     with:
       modo: oficial
-      juegos_dados: ${{ inputs.juegos_dados }}
-      shards: ${{ inputs.shards }}
+      juegos_dados: ${{ fromJSON(inputs.juegos_dados) }}
+      shards: ${{ fromJSON(inputs.shards) }}
       verbose: ${{ inputs.verbose }}
       aceptar_incidentes: ${{ inputs.aceptar_incidentes }}
     secrets: inherit

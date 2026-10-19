@@ -32,6 +32,6 @@ jobs:
     uses: ./.github/workflows/_liga.yml
     with:
       modo: mini
-      juegos_dados: ${{ inputs.juegos_dados }}
+      juegos_dados: ${{ fromJSON(inputs.juegos_dados) }}
       shards: 2
       verbose: ${{ inputs.verbose }}
