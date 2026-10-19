@@ -1,0 +1,118 @@
+# Imágenes públicas del torneo, para linux/amd64 y linux/arm64 (Mac con Apple Silicon):
+#   ghcr.io/raya-lucaria/torneo-base      (etapa cli: el CLI de ./torneo)
+#   ghcr.io/raya-lucaria/torneo-bot-base  (etapa bot: donde corren los bots)
+# Cada una con la etiqueta del tag (p. ej. v1.0) y la etiqueta móvil v1.
+name: Imagen base
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      etiqueta:
+        description: "Etiqueta además de v1 (p. ej. v1.0.1). Vacía: el SHA corto."
+        type: string
+        default: ""
+
+permissions:
+  packages: write
+  contents: read
+
+concurrency:
+  group: imagen-base
+  cancel-in-progress: false
+
+jobs:
+  construir:
+    if: github.repository == 'raya-lucaria/ia_o26_torneo_adversarial' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Etiqueta
+        id: etiqueta
+        env:
+          ENTRADA: ${{ inputs.etiqueta }}
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            etiqueta="$GITHUB_REF_NAME"
+          elif [[ -n "$ENTRADA" ]]; then
+            etiqueta="$ENTRADA"
+          else
+            etiqueta="sha-${GITHUB_SHA::7}"
+          fi
+          [[ "$etiqueta" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]] || {
+            echo "::error::Etiqueta inválida: $etiqueta"
+            exit 1
+          }
+          echo "valor=$etiqueta" >>"$GITHUB_OUTPUT"
+
+      - name: Huella del código (etiqueta torneo.fuente, la misma que revisa ./torneo)
+        id: huella
+        run: |
+          echo "bot=$(sistema/herramientas/huella.sh bot)" >>"$GITHUB_OUTPUT"
+          echo "cli=$(sistema/herramientas/huella.sh cli)" >>"$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Imagen de los bots (torneo-bot-base)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: sistema/Dockerfile
+          target: bot
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/raya-lucaria/torneo-bot-base:${{ steps.etiqueta.outputs.valor }}
+            ghcr.io/raya-lucaria/torneo-bot-base:v1
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            torneo.fuente=${{ steps.huella.outputs.bot }}
+          cache-from: type=gha,scope=torneo-bot
+          cache-to: type=gha,scope=torneo-bot,mode=max
+
+      - name: Imagen del CLI (torneo-base)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: sistema/Dockerfile
+          target: cli
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/raya-lucaria/torneo-base:${{ steps.etiqueta.outputs.valor }}
+            ghcr.io/raya-lucaria/torneo-base:v1
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            torneo.fuente=${{ steps.huella.outputs.cli }}
+          cache-from: |
+            type=gha,scope=torneo-cli
+            type=gha,scope=torneo-bot
+          cache-to: type=gha,scope=torneo-cli,mode=max
+
+      - name: Probar numba en las dos arquitecturas
+        env:
+          IMAGEN: ghcr.io/raya-lucaria/torneo-bot-base:${{ steps.etiqueta.outputs.valor }}
+        run: |
+          for plataforma in linux/amd64 linux/arm64; do
+            echo "== $plataforma"
+            docker run --rm --platform "$plataforma" "$IMAGEN" python -c '
+          import platform, numba, numpy
+          from motor import Estado, simular_al_azar
+          print(platform.machine(), "numba", numba.__version__, "numpy", numpy.__version__)
+          print("simulaciones:", simular_al_azar(Estado.inicial(), 4, 1, para="blancas"))
+          '
+          done
