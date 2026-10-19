@@ -46,8 +46,6 @@ def tabla_limites() -> str:
 _DESCRIPCIONES = {
     "random": "`random` (juega al azar)",
     "montecarlo": "`montecarlo` (Monte Carlo plano)",
-    "tier_1": "Tier 1 (UCT con varias horas de entrenamiento)",
-    "tier_2": "Tier 2 (a lo más 24 horas de entrenamiento en la computadora del profesor)",
 }
 
 
@@ -55,7 +53,7 @@ def _descripcion(rival: str) -> str:
     if rival in _DESCRIPCIONES:
         return _DESCRIPCIONES[rival]
     if rival.startswith("tier_"):
-        return f"Tier {rival.removeprefix('tier_')} (por definirse)"
+        return f"Tier {rival.removeprefix('tier_')}"
     return f"`{rival}`"
 
 

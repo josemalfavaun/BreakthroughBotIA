@@ -103,10 +103,9 @@ def jugar(estado: Estado, tiempo_restante: float) -> Jugada:
 - `random` elige una jugada legal al azar.
 - `montecarlo` hace Monte Carlo plano: para cada jugada simula partidas al azar y elige la de mejor
   promedio. Es tu punto de partida; sus comentarios marcan dónde puedes mejorar.
-- **Tier 1 a Tier 5:** bots más fuertes, de menor a mayor. Tier 1 es un UCT con varias horas de entrenamiento. Tier 2
-  tendrá a lo más 24 horas de entrenamiento en la computadora del profesor. Los demás están por
-  definirse. Su código no se publica: aparecen el día de la liga y juegan con las mismas reglas y
-  límites que tú.
+- **Tier 1 a Tier 5:** bots más fuertes, de menor a mayor. Los detalles se anuncian en clase.
+  Su código no se publica: aparecen el día de la liga y juegan con las mismas reglas y límites
+  que tú.
 
 ## Cómo se califica
 
@@ -121,11 +120,11 @@ Cada victoria vale 1 punto. Tu calificación es la del **mejor bot de referencia
 | ninguno | 0 |
 | `random` (juega al azar) | 1 |
 | `montecarlo` (Monte Carlo plano) | 3 |
-| Tier 1 (UCT con varias horas de entrenamiento) | 5 |
-| Tier 2 (a lo más 24 horas de entrenamiento en la computadora del profesor) | 6 |
-| Tier 3 (por definirse) | 7 |
-| Tier 4 (por definirse) | 8.5 |
-| Tier 5 (por definirse) | 10 |
+| Tier 1 | 5 |
+| Tier 2 | 6 |
+| Tier 3 | 7 |
+| Tier 4 | 8.5 |
+| Tier 5 | 10 |
 | **Lugares 1, 2 y 3 entre equipos de alumnos** | **10** |
 <!-- calificacion:fin -->
 

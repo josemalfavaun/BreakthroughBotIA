@@ -130,9 +130,9 @@ No le ganas: «ganarle» es tener **estrictamente** más puntos. Ver
 
 ### ¿Cómo son los tiers?
 
-Tier 1 es un UCT con varias horas de entrenamiento. Tier 2 tendrá a lo más 24 horas de
-entrenamiento en la computadora del profesor. Los demás están por definirse. Su código no se
-publica; aparecen el día de la liga y juegan con las mismas reglas y límites que tú.
+Son bots más fuertes, de menor a mayor. Los detalles se anuncian en clase. Su código no se
+publica; aparecen el día de la liga y juegan con las mismas reglas y límites que tú. Lo que se
+califica es que tu bot juegue bien de verdad: no hay atajo que reemplace pensar la estrategia.
 
 ### Tengo una duda que no está aquí.
 
