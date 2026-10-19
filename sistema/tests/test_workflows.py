@@ -32,7 +32,6 @@ def test_existen_los_workflows():
     assert set(todos()) >= {
         "prueba.yml",
         "revisar-pr.yml",
-        "imagen-base.yml",
         "liga-oficial.yml",
         "liga-mini.yml",
         "_liga.yml",
@@ -160,17 +159,16 @@ def test_liga_desconfia_de_los_logs_de_los_bots():
     assert "--shard" in texto and "--oficial" in texto
 
 
-def test_imagen_base_multiarch():
-    w = cargar("imagen-base.yml")
-    texto = (WORKFLOWS / "imagen-base.yml").read_text()
-    assert "linux/amd64" in texto and "linux/arm64" in texto
-    assert w["permissions"] == {"packages": "write", "contents": "read"}
-    assert w["on"]["push"]["tags"] == ["v*"] and "workflow_dispatch" in w["on"]
-    assert "ghcr.io/raya-lucaria/torneo-base" in texto
-    assert "ghcr.io/raya-lucaria/torneo-bot-base" in texto
-    assert ":v1" in texto
-    assert "startsWith(github.ref, 'refs/tags/v')" in w["jobs"]["construir"]["if"]
-    assert "scope=torneo-bot" in texto and "scope=torneo-cli" in texto
+def test_ningun_workflow_publica_imagenes():
+    # Las imágenes se construyen en cada máquina; nada se sube a un registro.
+    assert not (WORKFLOWS / "imagen-base.yml").exists()
+    for nombre in todos():
+        texto = (WORKFLOWS / nombre).read_text(encoding="utf-8")
+        assert "ghcr.io" not in texto, nombre
+        assert "docker/login-action" not in texto, nombre
+        assert "docker push" not in texto, nombre
+        assert "push: true" not in texto, nombre
+        assert "packages: write" not in texto, nombre
 
 
 def test_codeowners():

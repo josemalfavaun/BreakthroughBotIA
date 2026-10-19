@@ -212,7 +212,7 @@ jobs:
         id: guardar
         run: |
           mapfile -t imagenes < <(docker image ls --format '{{.Repository}}:{{.Tag}}' |
-            grep -E '^(torneo-bot-base:local|ghcr\.io/raya-lucaria/torneo-base:v1|torneo-bot:.+)$' | sort -u)
+            grep -E '^(torneo-bot-base:local|torneo-base:local|torneo-bot:.+)$' | sort -u)
           echo "Imágenes: ${#imagenes[@]}"
           mkdir -p "$RUNNER_TEMP/imagenes"
           if [[ "$MODO" == oficial ]]; then

@@ -62,8 +62,8 @@ jobs:
           cat "$RUNNER_TEMP/equipos.txt"
 
       - name: Preparar Docker y la caché de numba
-        # Descarga las imágenes públicas (ghcr.io/raya-lucaria/...:v1); si no se puede,
-        # ./torneo las construye aquí (unos minutos más).
+        # ./torneo construye aquí las imágenes del torneo (nada se descarga de un registro;
+        # unos minutos) y llena la caché de numba.
         run: ./torneo calentar
 
       - name: Validar, jugar y resumir

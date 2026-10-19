@@ -18,7 +18,7 @@ for _ in $(seq 60); do
     sleep 2
 done
 
-# Descarga (o construye) las imágenes y llena la caché de numba.
+# Construye las imágenes del torneo en el Codespace (unos minutos) y llena la caché de numba.
 ./torneo calentar
 
 echo
