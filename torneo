@@ -2,20 +2,22 @@
 # ./torneo <comando> — punto de entrada del torneo. Funciona desde cualquier carpeta del repo.
 #
 #   ./torneo jugar mi_equipo montecarlo      ./torneo validar mi_equipo
-#   ./torneo mini mi_equipo                  ./torneo --help
+#   ./torneo mini mi_equipo                  ./torneo construir
+#   ./torneo --help
 #
 # Con Docker (lo normal): el CLI corre en un contenedor y cada bot en el suyo, con los
-# límites oficiales. La primera vez descarga (o construye) las imágenes; tarda unos minutos.
+# límites oficiales. Las imágenes se construyen en tu máquina (nunca se descargan de un
+# registro): la primera vez y tras una actualización de sistema/ tarda unos minutos.
+# ./torneo construir las reconstruye a la fuerza (si algo raro pasa con Docker).
 # Con --sin-docker: corre con tu Python (necesita numpy, scipy y numba), sin límites.
 # Windows: usa WSL2 o Codespaces.
 #
-# Variables opcionales: TORNEO_CONSTRUIR=1 (reconstruir las imágenes aquí en vez de
-# descargarlas), TORNEO_PYTHON (Python para --sin-docker), TORNEO_LIMITES (otro limites.toml).
+# Variables opcionales: TORNEO_CONSTRUIR=1 (reconstruir las imágenes aunque estén al día;
+# lo mismo que ./torneo construir), TORNEO_PYTHON (Python para --sin-docker), TORNEO_LIMITES (otro limites.toml).
 set -euo pipefail
 
-IMAGEN_CLI="ghcr.io/raya-lucaria/torneo-base:v1"
+IMAGEN_CLI="torneo-base:local"
 IMAGEN_BOTS="torneo-bot-base:local"
-IMAGEN_BOTS_GHCR="ghcr.io/raya-lucaria/torneo-bot-base:v1"
 
 error() {
     echo "✗ $*" >&2
@@ -43,8 +45,12 @@ export TORNEO_HUSO
 TORNEO_HUSO="$(date +%z)"
 
 sin_docker=0
+ayuda=0
+comando="" # primer argumento que no es opción (el comando del CLI)
 for arg in "$@"; do
     [[ "$arg" == "--sin-docker" ]] && sin_docker=1
+    [[ "$arg" == "-h" || "$arg" == "--help" ]] && ayuda=1
+    [[ -z "$comando" && "$arg" != -* ]] && comando="$arg"
 done
 
 # --- Sin Docker: tu Python, directo ----------------------------------------------------------
@@ -78,8 +84,18 @@ docker compose version >/dev/null 2>&1 ||
 
 cd "$RAIZ"
 
-# Huella (etiqueta torneo.fuente) del código que debe tener cada imagen; la misma que
-# pone imagen-base.yml al publicar en GHCR.
+# ./torneo construir: reconstruye las dos imágenes aunque estén al día y luego corre
+# «calentar» (el CLI recibe «construir», que hace lo mismo que «calentar»).
+if [[ "$comando" == construir ]] && ((!ayuda)); then
+    [[ -z "${TORNEO_IMAGEN_DIGEST:-}" ]] ||
+        error "TORNEO_IMAGEN_DIGEST está definida (liga oficial): ahí no se construye nada."
+    echo "Reconstruyendo desde cero las imágenes del torneo (CLI y bots) y la caché de numba."
+    echo "Tarda unos minutos (más la primera vez: descarga Python y las librerías)."
+    export TORNEO_CONSTRUIR=1
+fi
+
+# Huella (etiqueta torneo.fuente) del código que debe tener cada imagen: si la imagen local
+# no la tiene (no existe, o cambió sistema/), se reconstruye.
 HUELLA_BOTS="$(sistema/herramientas/huella.sh bot)"
 HUELLA_CLI="$(sistema/herramientas/huella.sh cli)"
 
@@ -87,34 +103,26 @@ etiqueta_de() { # <imagen>: su torneo.fuente (vacía si no existe o no tiene)
     docker image inspect -f '{{index .Config.Labels "torneo.fuente"}}' "$1" 2>/dev/null || true
 }
 
-asegurar_imagen() { # <nombre local> <nombre en GHCR> <etapa del Dockerfile> <huella>
-    local nombre="$1" remota="$2" etapa="$3" esperada="$4"
+asegurar_imagen() { # <nombre local> <etapa del Dockerfile> <huella>
+    local nombre="$1" etapa="$2" esperada="$3"
     if [[ -n "${TORNEO_IMAGEN_DIGEST:-}" ]]; then
-        # Liga oficial: las imágenes ya vienen cargadas; nunca se descargan ni construyen.
+        # Liga oficial: las imágenes ya vienen cargadas; nunca se construyen.
         [[ "$(etiqueta_de "$nombre")" == "$esperada" ]] ||
             error "La imagen $nombre no está cargada o no corresponde a este código (TORNEO_IMAGEN_DIGEST está definida: en la liga no se construye nada). Carga las imágenes del job «imagenes»."
         return 0
     fi
     [[ "${TORNEO_CONSTRUIR:-0}" != 1 && "$(etiqueta_de "$nombre")" == "$esperada" ]] && return 0
-    if [[ -z "${AVISO_IMAGENES:-}" && "${TORNEO_CONSTRUIR:-0}" != 1 ]]; then
+    if [[ -z "${AVISO_IMAGENES:-}" ]]; then
         AVISO_IMAGENES=1
-        echo "Descargando las imágenes del torneo (la primera vez o tras una actualización; unos minutos)..."
+        echo "Construyendo las imágenes del torneo en tu máquina (la primera vez o tras una actualización del curso; tarda unos minutos)..."
     fi
-    if [[ "${TORNEO_CONSTRUIR:-0}" != 1 ]]; then
-        echo "  · $remota"
-        if docker pull "$remota" 2>/dev/null; then
-            [[ "$remota" == "$nombre" ]] || docker tag "$remota" "$nombre"
-            [[ "$(etiqueta_de "$nombre")" == "$esperada" ]] && return 0
-            echo "La imagen publicada no corresponde a tu versión de sistema/."
-        fi
-        echo "La construyo en tu máquina (solo cuando cambia sistema/; la primera vez tarda unos minutos)..."
-    fi
+    echo "  · $nombre"
     docker build -f sistema/Dockerfile --target "$etapa" --label "torneo.fuente=$esperada" -t "$nombre" . ||
-        error "No se pudo construir la imagen $nombre. Revisa tu conexión a internet y vuelve a intentarlo."
+        error "No se pudo construir la imagen $nombre. Revisa tu conexión a internet (descarga Python y las librerías) y vuelve a intentarlo con ./torneo construir."
 }
 
-asegurar_imagen "$IMAGEN_BOTS" "$IMAGEN_BOTS_GHCR" bot "$HUELLA_BOTS"
-asegurar_imagen "$IMAGEN_CLI" "$IMAGEN_CLI" cli "$HUELLA_CLI"
+asegurar_imagen "$IMAGEN_BOTS" bot "$HUELLA_BOTS"
+asegurar_imagen "$IMAGEN_CLI" cli "$HUELLA_CLI"
 
 # Linux: el CLI corre con tu usuario (resultados/ queda tuyo, no de root) y con el grupo
 # dueño del socket de Docker. Mac (Docker Desktop, colima): corre como root dentro de la

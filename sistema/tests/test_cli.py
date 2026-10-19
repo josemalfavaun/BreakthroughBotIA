@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 import pytest
+import yaml
 
 from cli import salida
 from cli.comandos import main
@@ -530,23 +531,55 @@ def test_huella_igual_desde_cualquier_carpeta(tmp_path):
         assert desde_raiz.stdout == desde_otra.stdout
 
 
-def test_imagen_base_usa_la_misma_huella():
-    texto = (RAIZ / ".github" / "workflows" / "imagen-base.yml").read_text(encoding="utf-8")
-    assert "sistema/herramientas/huella.sh bot" in texto
-    assert "torneo.fuente=${{ steps.huella.outputs.bot }}" in texto
-    assert "torneo.fuente=${{ steps.huella.outputs.cli }}" in texto
+def test_script_usa_la_huella_y_nombres_locales():
     script = (RAIZ / "torneo").read_text(encoding="utf-8")
     assert "sistema/herramientas/huella.sh bot" in script
+    assert "sistema/herramientas/huella.sh cli" in script
+    assert '--label "torneo.fuente=$esperada"' in script
+    assert 'IMAGEN_CLI="torneo-base:local"' in script
+    assert 'IMAGEN_BOTS="torneo-bot-base:local"' in script
+    compose = yaml.safe_load((RAIZ / "docker-compose.yml").read_text(encoding="utf-8"))
+    servicio = compose["services"]["torneo"]
+    assert servicio["image"] == "torneo-base:local"
+    assert servicio["pull_policy"] == "never"
 
 
 # --- script ./torneo -----------------------------------------------------------------------
-def test_script_avisa_una_vez_que_descarga_las_imagenes():
+def test_script_nunca_descarga_imagenes():
     script = (RAIZ / "torneo").read_text(encoding="utf-8")
-    aviso = "Descargando las imágenes del torneo (solo la primera vez, unos minutos)..."
+    assert "docker pull" not in script
+    assert "ghcr.io" not in script
+
+
+def test_script_avisa_una_vez_que_construye_las_imagenes():
+    script = (RAIZ / "torneo").read_text(encoding="utf-8")
+    aviso = (
+        "Construyendo las imágenes del torneo en tu máquina (la primera vez o tras una "
+        "actualización del curso; tarda unos minutos)..."
+    )
     assert script.count(aviso) == 1
-    # El aviso va después de revisar si la imagen ya está (no sale si no hay nada que bajar).
+    # El aviso va después de revisar si la imagen ya está (no sale si no hay nada que hacer).
     funcion = script[script.index("asegurar_imagen() {") :]
     assert funcion.index('== "$esperada" ]] && return 0') < funcion.index(aviso)
+
+
+def test_script_construir_fuerza_la_reconstruccion():
+    script = (RAIZ / "torneo").read_text(encoding="utf-8")
+    bloque = script[script.index('if [[ "$comando" == construir ]]') :]
+    bloque = bloque[: bloque.index("\nfi\n")]
+    assert "export TORNEO_CONSTRUIR=1" in bloque
+    assert "TORNEO_IMAGEN_DIGEST" in bloque  # en la liga no se construye nada
+
+
+def test_construir_aparece_en_la_ayuda(capsys):
+    with pytest.raises(SystemExit):
+        main(["--help"])
+    assert "construir" in capsys.readouterr().out
+
+
+def test_construir_sin_docker_no_hace_nada(capsys):
+    assert main(["construir", "--sin-docker"]) == 0
+    assert "Sin Docker" in capsys.readouterr().out
 
 
 def copiar_repo(tmp_path: Path) -> Path:

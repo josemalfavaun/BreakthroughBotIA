@@ -1,4 +1,5 @@
-"""Comandos de `./torneo`: validar, jugar, liga, mini, repetir, visor, calentar e imagenes.
+"""Comandos de `./torneo`: validar, jugar, liga, mini, repetir, visor, calentar, construir e
+imagenes.
 
 Todos aceptan `--sin-docker` (bots como subprocesos, sin límites ni aislamiento: solo
 para depurar rápido). Con Docker, cada bot corre en su contenedor con los límites
@@ -424,6 +425,16 @@ def cmd_calentar(args, entorno: Entorno) -> int:
     return 0
 
 
+def cmd_construir(args, entorno: Entorno) -> int:
+    """Las imágenes ya las reconstruyó el script ./torneo (TORNEO_CONSTRUIR=1); aquí falta
+    la caché de numba, igual que en `calentar`."""
+    if not entorno.docker:
+        imprimir("Sin Docker no hay imágenes que construir.")
+        return 0
+    imprimir("Imágenes del torneo listas.")
+    return cmd_calentar(args, entorno)
+
+
 # --- Argumentos ----------------------------------------------------------------------------
 class _Parser(argparse.ArgumentParser):
     def error(self, message: str):
@@ -498,6 +509,16 @@ def construir_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("calentar", parents=[comun], help="prepara la caché de numba")
     p.set_defaults(funcion=cmd_calentar)
+
+    p = sub.add_parser(
+        "construir",
+        parents=[comun],
+        help="reconstruye las imágenes del torneo y la caché de numba (unos minutos)",
+        description="Reconstruye desde cero, en tu máquina, las imágenes de Docker del torneo "
+        "(CLI y bots) y luego corre «calentar». Úsalo si algo raro pasa con Docker o después "
+        "de actualizar el sistema. Tarda unos minutos.",
+    )
+    p.set_defaults(funcion=cmd_construir)
 
     p = sub.add_parser("imagenes", parents=[comun], help="construye las imágenes de equipos")
     p.add_argument("equipos", nargs="*", help="equipos (sin nombres: todos los de estudiantes/)")

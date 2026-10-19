@@ -1,7 +1,7 @@
 """Docker para el CLI: imágenes de los equipos, caché de numba y limpieza de contenedores.
 
 - La imagen base de los bots (`torneo-bot-base:local`) la deja lista el script `./torneo`
-  (la descarga de GHCR o la construye).
+  (la construye en tu máquina; nunca se descarga de un registro).
 - `torneo-bot:<equipo>`: si el equipo no instala nada (sin requirements.txt o solo con
   comentarios) es la misma imagen base con otro nombre; si instala algo, se construye con
   `sistema/Dockerfile.equipo` y se reconstruye solo cuando cambian su requirements.txt,
@@ -93,8 +93,8 @@ def imagen_base(c):
         return c.images.get(IMAGEN_BOTS)
     except docker.errors.ImageNotFound:
         raise ErrorCLI(
-            f"Falta la imagen {IMAGEN_BOTS}. Usa el script ./torneo (la descarga o la "
-            "construye solo)."
+            f"Falta la imagen {IMAGEN_BOTS}. Usa el script ./torneo (la construye solo en "
+            "tu máquina) o corre ./torneo construir."
         ) from None
 
 

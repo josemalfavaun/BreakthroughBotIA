@@ -1,10 +1,11 @@
-# Un solo servicio: el CLI del torneo. Úsalo a través de ./torneo, que antes descarga
-# (o construye) las imágenes y exporta las variables TORNEO_* de abajo.
+# Un solo servicio: el CLI del torneo. Úsalo a través de ./torneo, que antes construye las
+# imágenes en tu máquina (si faltan o cambió sistema/) y exporta las variables TORNEO_* de abajo.
 name: torneo
 services:
   torneo:
-    image: ghcr.io/raya-lucaria/torneo-base:v1
-    # Respaldo si la imagen no se puede descargar (./torneo la construye solo).
+    image: torneo-base:local
+    # Nunca se descarga de un registro: la construye ./torneo (con la etiqueta torneo.fuente).
+    pull_policy: never
     build:
       context: .
       dockerfile: sistema/Dockerfile

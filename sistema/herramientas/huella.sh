@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Huella (etiqueta `torneo.fuente`) del código que va dentro de cada imagen del torneo.
-# La usan ./torneo (para saber si una imagen está al día) e imagen-base.yml (la pone como
-# etiqueta al publicar), así ambos la calculan exactamente igual.
+# La usa ./torneo: la pone como etiqueta al construir cada imagen en tu máquina y la compara
+# para saber si una imagen local está al día (si no, la reconstruye).
 #
 #   sistema/herramientas/huella.sh bot   # imagen de bots: sistema/ horneado (sin tests ni cachés)
 #   sistema/herramientas/huella.sh cli   # imagen del CLI: Dockerfile y librerías (usa el
