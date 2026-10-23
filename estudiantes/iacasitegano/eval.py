@@ -16,7 +16,7 @@ from motor import Estado
 from motor.jugada import casilla_de_texto
 from motor.nucleo import LADO, PEONES, PUNTOS_PARA_GANAR
 
-NOMBRES_FEATURES = ("puntos", "avance", "apoyo", "pasado", "columnas_vacias")
+NOMBRES_FEATURES = ("puntos", "avance", "apoyo", "pasado", "columnas_vacias", "carrera")
 # fmt: off
 PESOS = np.array([
     1000.0,  # puntos: diferencia de puntos anotados
@@ -24,6 +24,7 @@ PESOS = np.array([
        1.0,  # apoyo: peones propios que cubren a otro peón propio
        8.0,  # pasado: igual que avance, pero solo de peones sin nadie rival en su camino
       15.0,  # columnas_vacias: columnas RIVALES sin nadie menos las propias sin nadie
+       0.0,  # carrera: distancia propia a la meta menos distancia rival (se entrena)
 ])
 # fmt: on
 
@@ -31,6 +32,11 @@ PESOS = np.array([
 def cargar_pesos(pesos: np.ndarray) -> None:
     """Reemplaza `PESOS` (lo llama `strategy.preparar` si existe `data/pesos.npy`)."""
     global PESOS
+    pesos = np.asarray(pesos, dtype=float)
+    # Compatibilidad durante la transición: un checkpoint de cinco features
+    # conserva su comportamiento y empieza con peso cero para `carrera`.
+    if pesos.shape == (len(NOMBRES_FEATURES) - 1,):
+        pesos = np.concatenate((pesos, np.array([0.0])))
     if pesos.shape != (len(NOMBRES_FEATURES),):
         raise ValueError(f"se esperaban {len(NOMBRES_FEATURES)} pesos, llegaron {pesos.shape}")
     PESOS = pesos
@@ -51,6 +57,7 @@ def cota() -> float:
             PEONES * 2,  # apoyo máximo: 2 por peón
             PEONES * (LADO - 1),  # pasado máximo: igual que avance
             LADO,  # columnas_vacias: como mucho las 9 columnas
+            LADO,  # carrera: diferencia segura entre distancias 1..LADO
         ]
     )
     return float(np.dot(np.abs(PESOS), cota_por_feature))
@@ -115,6 +122,14 @@ def _features_bando(estado: Estado, color: str, casillas_rivales: set[int]) -> n
     return np.array([avance, apoyo, pasado, columnas_vacias], dtype=float)
 
 
+def _distancia_meta(casillas: set[int], color: str) -> int:
+    """Distancia del peón más avanzado a la fila meta; sin peones vale `LADO`."""
+    if not casillas:
+        return LADO
+    avance_maximo = max(_avance(c // LADO, color) for c in casillas)
+    return LADO - 1 - avance_maximo
+
+
 def features(estado: Estado, color: str) -> np.ndarray:
     """Vector de atributos de `estado` para `color`, en el mismo orden que `PESOS`.
 
@@ -128,8 +143,9 @@ def features(estado: Estado, color: str) -> np.ndarray:
     propio = _features_bando(estado, color, casillas_rivales)
     ajeno = _features_bando(estado, rival, casillas_propias)
     avance, apoyo, pasado, columnas_vacias = propio - ajeno
+    carrera = _distancia_meta(casillas_propias, color) - _distancia_meta(casillas_rivales, rival)
     return np.array(
-        [puntos[color] - puntos[rival], avance, apoyo, pasado, -columnas_vacias]
+        [puntos[color] - puntos[rival], avance, apoyo, pasado, -columnas_vacias, carrera]
     )
 
 

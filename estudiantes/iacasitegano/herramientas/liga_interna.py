@@ -8,7 +8,7 @@ INFORME.md sección 8b). Esto automatiza lo que hasta ahora hacíamos a mano con
 victorias y puntos totales de cada lado. No corre en la liga oficial.
 
 Uso:
-    cd estudiantes/joseydaphne
+    cd estudiantes/iacasitegano
     python herramientas/liga_interna.py
     python herramientas/liga_interna.py --partidas 40 --profundidad 4
     python herramientas/liga_interna.py --checkpoint data/pesos_anterior.npy
@@ -51,6 +51,11 @@ SEMILLA = 2026
 
 
 def _jugador_con_pesos(pesos: np.ndarray, profundidad: int, ganancia: float):
+    pesos = np.asarray(pesos, dtype=float)
+    if pesos.shape == (len(ev.NOMBRES_FEATURES) - 1,):
+        pesos = np.concatenate((pesos, np.array([0.0])))
+    if pesos.shape != (len(ev.NOMBRES_FEATURES),):
+        raise ValueError(f"checkpoint con forma incompatible: {pesos.shape}")
     pesos = np.ascontiguousarray(pesos, dtype=np.float64)
 
     def mover(estado: Estado, _reloj: float) -> Jugada:
@@ -121,22 +126,32 @@ def main() -> None:
     ap.add_argument("--profundidad", type=int, default=PROFUNDIDAD_DEFAULT)
     ap.add_argument("--checkpoint", type=Path, default=None, help="pesos.npy anterior, para comparar")
     ap.add_argument("--semilla", type=int, default=SEMILLA)
+    ap.add_argument(
+        "--rival",
+        choices=("ambos", "random", "montecarlo"),
+        default="ambos",
+        help="rival externo a ejecutar; permite continuar sin repetir tandas ya confirmadas",
+    )
     args = ap.parse_args()
 
+    ruta_pesos_actuales = CARPETA_EQUIPO / "data" / "pesos.npy"
+    if ruta_pesos_actuales.exists():  # si no, se queda con los PESOS a mano de eval.py
+        ev.cargar_pesos(np.load(ruta_pesos_actuales))
     ganancia = ev.cota() + 100.0
     pesos_actuales = np.ascontiguousarray(ev.PESOS, dtype=np.float64)
 
     def fabrica_actual(_color, _semilla_juego):
         return _jugador_con_pesos(pesos_actuales, args.profundidad, ganancia)
 
-    for nombre_rival in ("random", "montecarlo"):
+    rivales = ("random", "montecarlo") if args.rival == "ambos" else (args.rival,)
+    for nombre_rival in rivales:
         modulo = _cargar_strategy(nombre_rival)
 
         def fabrica_rival(color, semilla_juego, modulo=modulo):
             return _jugador_rival(modulo, color, semilla_juego)
 
-        print(f"joseydaphne (profundidad {args.profundidad}) vs {nombre_rival}:")
-        jugar_liga("joseydaphne", fabrica_actual, nombre_rival, fabrica_rival,
+        print(f"iacasitegano (profundidad {args.profundidad}) vs {nombre_rival}:")
+        jugar_liga("iacasitegano", fabrica_actual, nombre_rival, fabrica_rival,
                    args.partidas, args.semilla)
 
     if args.checkpoint is not None:
@@ -145,7 +160,7 @@ def main() -> None:
         def fabrica_checkpoint(_color, _semilla_juego):
             return _jugador_con_pesos(pesos_anteriores, args.profundidad, ganancia)
 
-        print(f"joseydaphne (pesos actuales) vs joseydaphne ({args.checkpoint.name}):")
+        print(f"iacasitegano (pesos actuales) vs iacasitegano ({args.checkpoint.name}):")
         jugar_liga("actual", fabrica_actual, "checkpoint", fabrica_checkpoint,
                    args.partidas, args.semilla)
 

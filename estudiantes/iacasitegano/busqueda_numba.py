@@ -64,6 +64,9 @@ TT_TAM = 1 << TT_BITS  # potencia de 2: el índice es un AND, no un módulo
 TT_MASCARA = np.uint64(TT_TAM - 1)
 TT_VACIA = np.uint64(0)  # una posición real con llave exactamente 0 es, en la práctica, imposible
 QUIESCENCIA_MAX = 0  # medida con A/B real: no compensa (ver nota abajo). Apagada por default.
+# Fase 2 medida con A/B real y rechazada: dejar la implementación disponible para
+# futuras pruebas, pero el campeón corre sin este cambio.
+ORDENAMIENTO_JUGADAS = False
 
 
 @njit(cache=True)
@@ -72,6 +75,8 @@ def _features_numba(tablero, puntos, color):
     rival = 1 - color
     avance_p = apoyo_p = pasado_p = 0
     avance_r = apoyo_r = pasado_r = 0
+    avance_max_p = -1
+    avance_max_r = -1
     columnas_p = np.zeros(LADO, np.int8)
     columnas_r = np.zeros(LADO, np.int8)
     for c in range(CASILLAS):
@@ -99,30 +104,133 @@ def _features_numba(tablero, puntos, color):
                     pasado = False
         if es_propio:
             avance_p += a
+            if a > avance_max_p:
+                avance_max_p = a
             apoyo_p += ap
             if pasado:
                 pasado_p += a
             columnas_p[col] = 1
         else:
             avance_r += a
+            if a > avance_max_r:
+                avance_max_r = a
             apoyo_r += ap
             if pasado:
                 pasado_r += a
             columnas_r[col] = 1
     vacias_p = LADO - columnas_p.sum()
     vacias_r = LADO - columnas_r.sum()
-    salida = np.empty(5, np.float64)
+    distancia_p = LADO if avance_max_p < 0 else LADO - 1 - avance_max_p
+    distancia_r = LADO if avance_max_r < 0 else LADO - 1 - avance_max_r
+    salida = np.empty(6, np.float64)
     salida[0] = puntos[color] - puntos[rival]
     salida[1] = avance_p - avance_r
     salida[2] = apoyo_p - apoyo_r
     salida[3] = pasado_p - pasado_r
     salida[4] = vacias_r - vacias_p
+    salida[5] = distancia_p - distancia_r
     return salida
 
 
 @njit(cache=True)
 def _evaluar_numba(tablero, puntos, color, pesos):
     return np.dot(pesos, _features_numba(tablero, puntos, color))
+
+
+@njit(cache=True)
+def _amenaza_anotacion(tablero, color):
+    """Si el bando tiene una jugada que llega a su fila de anotación."""
+    origenes = np.empty(MAX_JUGADAS, np.int64)
+    destinos = np.empty(MAX_JUGADAS, np.int64)
+    n = generar(tablero, color, origenes, destinos)
+    fila_meta = LADO - 1 if color == 0 else 0
+    for i in range(n):
+        if destinos[i] // LADO == fila_meta:
+            return True
+    return False
+
+
+@njit(cache=True)
+def _es_pasado(tablero, color, destino):
+    """Aproximación barata de peón pasado para desempatar jugadas tranquilas."""
+    fila = destino // LADO
+    col = destino % LADO
+    rival = 1 - color
+    if color == 0:
+        filas = range(fila + 1, LADO)
+    else:
+        filas = range(0, fila)
+    for f in filas:
+        base = f * LADO
+        for dc in (-1, 0, 1):
+            cc = col + dc
+            if 0 <= cc < LADO and tablero[base + cc] == (2 - rival):
+                return False
+    return True
+
+
+@njit(cache=True)
+def _prioridad_jugada(tablero, color, origen, destino, amenaza_rival, origen_sugerido,
+                      destino_sugerido):
+    """Prioridad lexicográfica aproximada; nunca altera el valor minimax."""
+    fila_meta = LADO - 1 if color == 0 else 0
+    ataque = tablero[destino] != VACIA
+    puntuacion = 0.0
+
+    # 1-2. Victoria inmediata y ataque que anota si gana.
+    if destino // LADO == fila_meta:
+        puntuacion += 1_000_000.0 if not ataque else 900_000.0
+
+    # 3. Ataques con mayor probabilidad.
+    if ataque:
+        puntuacion += 500_000.0 + 100_000.0 * prob_jugada(tablero, color, origen, destino)
+
+    # 4. Si había una anotación rival disponible, premiar la jugada que la bloquea.
+    # Se asume el resultado favorable del propio ataque solo para ordenar; el árbol
+    # sigue evaluando todas las ramas exactamente.
+    tablero_despues = tablero.copy()
+    tablero_despues[destino] = tablero_despues[origen]
+    tablero_despues[origen] = VACIA
+    if ataque and destino // LADO != fila_meta:
+        # El defensor desaparece en la rama favorable, que es la relevante para
+        # reconocer una defensa táctica; la rama desfavorable se evalúa aparte.
+        pass
+    if amenaza_rival and not _amenaza_anotacion(tablero_despues, 1 - color):
+        puntuacion += 100_000.0
+
+    # 5. Carrera pasada y apoyo; el avance también desempata tranquilas.
+    avance = destino // LADO if color == 0 else LADO - 1 - (destino // LADO)
+    puntuacion += 100.0 * avance
+    if _es_pasado(tablero_despues, color, destino):
+        puntuacion += 10_000.0
+    puntuacion += 10.0 * apoyo(tablero_despues, destino, color)
+
+    # 6. Ganadora de la iteración anterior; por debajo de las tácticas urgentes.
+    if origen == origen_sugerido and destino == destino_sugerido:
+        puntuacion += 1.0
+    return puntuacion
+
+
+@njit(cache=True)
+def _ordenar_jugadas_numba(tablero, color, origenes, destinos, n, origen_sugerido,
+                           destino_sugerido):
+    amenaza_rival = _amenaza_anotacion(tablero, 1 - color)
+    prioridades = np.empty(MAX_JUGADAS, np.float64)
+    for i in range(n):
+        prioridades[i] = _prioridad_jugada(
+            tablero, color, origenes[i], destinos[i], amenaza_rival,
+            origen_sugerido, destino_sugerido,
+        )
+    # Selection sort: n es pequeño y numba lo compila sin crear objetos Python.
+    for i in range(n):
+        mejor = i
+        for j in range(i + 1, n):
+            if prioridades[j] > prioridades[mejor]:
+                mejor = j
+        if mejor != i:
+            prioridades[i], prioridades[mejor] = prioridades[mejor], prioridades[i]
+            origenes[i], origenes[mejor] = origenes[mejor], origenes[i]
+            destinos[i], destinos[mejor] = destinos[mejor], destinos[i]
 
 
 _FIRMA_VALOR = (
@@ -157,6 +265,8 @@ def _quiescencia_numba(tablero, puntos, color, objetivo, alfa, beta, pesos, gana
     if puntos[1] >= PUNTOS_PARA_GANAR:
         return ganancia if objetivo == 1 else -ganancia
     n = generar(tablero, color, origenes, destinos)
+    if ORDENAMIENTO_JUGADAS:
+        _ordenar_jugadas_numba(tablero, color, origenes, destinos, n, -1, -1)
     if n == 0:
         ganador = 1 - color
         return ganancia if ganador == objetivo else -ganancia
@@ -241,6 +351,8 @@ def _valor_numba(tablero, puntos, color, objetivo, profundidad, alfa, beta, peso
     if puntos[1] >= PUNTOS_PARA_GANAR:
         return ganancia if objetivo == 1 else -ganancia
     n = generar(tablero, color, origenes, destinos)
+    if ORDENAMIENTO_JUGADAS:
+        _ordenar_jugadas_numba(tablero, color, origenes, destinos, n, -1, -1)
     if n == 0:
         ganador = 1 - color
         return ganancia if ganador == objetivo else -ganancia
@@ -333,6 +445,10 @@ def _mejor_jugada_numba(tablero, puntos, color, profundidad, pesos, ganancia, or
     origenes = np.empty(MAX_JUGADAS, np.int64)
     destinos = np.empty(MAX_JUGADAS, np.int64)
     n = generar(tablero, color, origenes, destinos)
+    if ORDENAMIENTO_JUGADAS:
+        _ordenar_jugadas_numba(
+            tablero, color, origenes, destinos, n, origen_sugerido, destino_sugerido,
+        )
     if origen_sugerido >= 0:
         for i in range(n):
             if origenes[i] == origen_sugerido and destinos[i] == destino_sugerido:

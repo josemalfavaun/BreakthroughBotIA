@@ -7,7 +7,7 @@ contra el resultado final de cada partida. Guarda el resultado en
 Nada en `herramientas/` corre en la liga (ver docs/avanzado.md). Para
 regenerar los pesos:
 
-    cd estudiantes/joseydaphne
+    cd estudiantes/iacasitegano
     python herramientas/entrenar.py
 
 Primera corrida (60 partidas, solo contra uno mismo): no alcanzó para ganarle
@@ -44,9 +44,9 @@ from motor import Estado, Jugada  # noqa: E402
 import busqueda_numba as bn  # noqa: E402
 import eval as ev  # noqa: E402
 
-PARTIDAS = 150  # a profundidad 5 cada partida tarda ~4x más que a profundidad 4: menos partidas
+PARTIDAS_POR_SEMILLA = 100
 PROFUNDIDAD = 5  # barata gracias a numba+TT (~0.1-0.15s/jugada); antes del port, 2 era el límite
-SEMILLA = 1234
+SEMILLAS = (1234, 5678, 9012)
 LAMBDA_RIDGE = 1.0  # regularización L2: frena pesos inestables por colinealidad entre features
 RELOJ_RIVAL_S = 30.0  # reloj "de a de veras" para random/montecarlo, igual que una partida oficial
 # Fracción de partidas contra cada rival (adentro, siempre jugamos nosotros con nuestra búsqueda).
@@ -133,6 +133,9 @@ def _elegir_rival(rng: random.Random, modulos: dict[str, ModuleType | None]) -> 
 
 def generar_datos(partidas: int, semilla: int) -> tuple[np.ndarray, np.ndarray]:
     rng = random.Random(semilla)
+    ruta_pesos_actuales = CARPETA_EQUIPO / "data" / "pesos.npy"
+    if ruta_pesos_actuales.exists():  # jugamos con los últimos pesos aceptados, no los de fábrica
+        ev.cargar_pesos(np.load(ruta_pesos_actuales))
     ganancia = ev.cota() + 100.0
     modulos: dict[str, ModuleType | None] = {"uno_mismo": None}
     if OPONENTES.get("random"):
@@ -163,8 +166,12 @@ def ajustar_pesos(xs: np.ndarray, ys: np.ndarray, lam: float) -> np.ndarray:
 
 
 def main() -> None:
-    print(f"Generando {PARTIDAS} partidas (oponentes: {OPONENTES}, profundidad propia {PROFUNDIDAD})...")
-    xs, ys = generar_datos(PARTIDAS, SEMILLA)
+    total = PARTIDAS_POR_SEMILLA * len(SEMILLAS)
+    print(f"Generando {total} partidas (semillas: {SEMILLAS}; "
+          f"oponentes: {OPONENTES}, profundidad propia {PROFUNDIDAD})...")
+    lotes = [generar_datos(PARTIDAS_POR_SEMILLA, semilla) for semilla in SEMILLAS]
+    xs = np.concatenate([lote[0] for lote in lotes])
+    ys = np.concatenate([lote[1] for lote in lotes])
     print(f"{len(xs)} posiciones. Ajustando pesos (ridge, lambda={LAMBDA_RIDGE})...")
     pesos = ajustar_pesos(xs, ys, LAMBDA_RIDGE)
     print("Pesos (antes -> entrenados):")

@@ -1,4 +1,4 @@
-# Informe: joseydaphne
+# Informe: iacasitegano
 
 ## 1. Integrantes
 Jose (000213398) y Daphne (000211927).
@@ -59,18 +59,25 @@ menos rival"):
   situación. La agregamos después de ver, jugando partidas reales, que nuestro bot dejaba columnas
   enteras sin nadie y un peón rival se paseaba sin oposición varias jugadas antes de que la
   búsqueda lo viera venir.
+- **carrera**: distancia del peón propio más avanzado a la meta, menos la distancia del peón rival
+  más avanzado. Un peso negativo convierte una distancia propia menor (mejor) en una contribución
+  positiva; si un bando no tiene peones, su distancia se toma como 9.
 
 Los pesos NO están puestos a mano: se ajustan con `herramientas/entrenar.py` (self-play + mínimos
 cuadrados con regularización ridge) y se guardan en `data/pesos.npy`. `strategy.preparar()` los
 carga si el archivo existe.
 
 ## 5. Precomputación (qué y cómo regenerarla)
-`data/pesos.npy`: los 5 pesos de la evaluación. Se regeneran con:
+`data/pesos.npy`: los 6 pesos de la evaluación. Se regeneran con:
 
 ```bash
-cd estudiantes/joseydaphne
+cd estudiantes/iacasitegano
 python herramientas/entrenar.py
 ```
+
+La corrida ampliada usa profundidad 5, 100 partidas por semilla y las semillas 1234, 5678 y
+9012 (300 partidas en total). El libro usa 100 partidas por cada una de las semillas 4242, 5151
+y 6262 (300 en total), acumulando las muestras antes de filtrar por claridad.
 
 El script juega partidas de self-play (y, para variar las posiciones, también contra `random` y
 `montecarlo`) con nuestra propia búsqueda a profundidad fija (barata, para poder generar muchas),
@@ -84,7 +91,7 @@ self-play la vio ganar claramente más que la segunda opción (mínimo 10 muestr
 8 puntos porcentuales — si no está claro, no entra). Se regenera con:
 
 ```bash
-cd estudiantes/joseydaphne
+cd estudiantes/iacasitegano
 python herramientas/libro_apertura.py
 ```
 
@@ -107,7 +114,7 @@ partidas completas, no se acepta a ojo.
 ## 6. Manejo del reloj
 Reserva fija del 30 % del reloj (igual que el bot de referencia). Una jugada forzada (una sola
 legal) se juega sin pensar, sin gastar nada de reloj. Del resto, cada jugada arranca con un
-presupuesto base de `1/20` de lo disponible, escalado entre 0.7x y 2.3x según qué fracción de las
+presupuesto base de `1/16` de lo disponible, escalado entre 0.5x y 2.0x según qué fracción de las
 jugadas legales son ataques — una posición con muchos ataques disponibles es más táctica y vale
 más la pena pensarla; una tranquila gasta menos de lo normal, dejando ese tiempo disponible (vía
 `tiempo_restante`) para cuando de verdad importe. Dentro de ese presupuesto, la profundización
@@ -129,6 +136,31 @@ en liga interna de 20 partidas (semilla fija, ambos colores):
 | Pesos entrenados (300 partidas, rivales variados, ridge) | 0-20 |
 | Búsqueda numba (profundidad 5-6), mismos pesos entrenados | 1-19 (primera victoria) |
 | + tabla de transposición + pesos reentrenados con self-play numba (profundidad 4) | **4-40 en total (dos semillas, ~10%)** |
+
+En la corrida de profundidad 5, el bot ganó `40-0` a `random`, perdió `2-38` contra `montecarlo`
+y quedó `21-19` contra el checkpoint de profundidad 4 (puntos `72-77`); por eso el checkpoint
+4 se conserva como referencia de profundidad y no se promociona la profundidad 5 por sí sola.
+Ese `2-38` no fue una tanda de derrotas por timeout: `liga_interna.py` usa para nuestro bot un
+jugador numba de profundidad fija que ignora `strategy.jugar()` y no aplica el reloj de 30 s ni
+penaliza jugadas lentas. Fue, por tanto, una comparación offline limpia con los pesos anteriores
+sin `carrera`. El `6-14` posterior no es contradictorio: corresponde al bot completo, con la
+feature nueva y el reparto de reloj tuneado `0.5/2.0/16`, medido con `./torneo --sin-docker`.
+
+La nueva feature `carrera` se entrenó con 150 partidas y ridge. En 20 partidas a profundidad 5,
+la versión nueva ganó `15-5` a los pesos anteriores sin `carrera` (puntos `49-28`), `7-13` a
+`montecarlo` (puntos `38-49`) y `16-4` al checkpoint4 (puntos `54-30`). Contra `random` ganó
+`20-0` (puntos `60-1`).
+
+Para ajustar el reparto de tiempo medimos tres configuraciones en 20 partidas cada una contra
+`montecarlo` (partidas completas, `--sin-docker` porque Docker no estaba disponible):
+
+| PESO_MINIMO / PESO_MAXIMO / REPARTO | Resultado iacasitegano |
+|---|---:|
+| 0.7 / 2.3 / 20 (baseline) | 3-17 |
+| 0.5 / 2.0 / 16 | **6-14** |
+| 0.8 / 1.8 / 24 | 4-16 |
+
+Se conserva `0.5/2.0/16`, que fue la configuración con más victorias reales.
 
 El salto real no fue ajustar pesos: fue profundidad. `montecarlo`, pese a tirar el dado en vez de
 usar la probabilidad exacta, compensa con volumen de muestreo (miles de simulaciones por jugada
@@ -189,3 +221,39 @@ evaluación lineal con datos de self-play en vez de pesos fijos. Escrito por el 
 Claude Code: diseño de la arquitectura, implementación, pruebas de corrección de la poda (contra
 una búsqueda exhaustiva de referencia) y diagnóstico de los resultados fueron iterativos,
 verificados jugando partidas reales en cada paso, no solo pedidos de una vez.
+
+
+## Self-play ampliado: decisión de pesos
+
+Paso 3 — decisión tras 40 partidas por comparación
+- nuevos vs antes: 27-13 victorias; puntos 96-66
+- nuevos vs checkpoint4: 32-8 victorias; puntos 105-70
+- márgenes directos: antes=14, checkpoint4=24
+- elegido: pesos_nuevos_selfplay_300
+- pesos nuevos preservados en data/pesos_selfplay_300.npy
+
+Resultados completos: `paso2_vs_antes.log` y `paso2_vs_checkpoint4.log`.
+
+
+## Validación real de pesos self-play 300 contra Monte Carlo
+
+Método: `./torneo jugar iacasitegano montecarlo --sin-docker --partidas 40 --semilla 2029 -v`, usando `strategy.jugar()` y el reparto de reloj `PESO_MINIMO=0.5`, `PESO_MAXIMO=2.0`, `REPARTO=16`.
+
+Resultado: Monte Carlo 37 - 3 iacasitegano (3/40 = 7.5%).
+
+Criterio fijado antes de la corrida: al menos 16 victorias de 40 para superar claramente el 6-14 histórico (30%); en otro caso se restaura la versión anterior.
+
+Decisión: **restaurar pesos_antes_selfplay_300**.
+
+Nota de protocolo: `herramientas/liga_interna.py` ejecuta una búsqueda numba de profundidad fija y su jugador ignora el reloj; sirve para comparar valores/pesos offline. `strategy.jugar()` sí aplica el reparto de reloj y es el bot real que debe usarse para comparar contra el 6-14.
+
+
+## Fase 2 limpia: orden de jugadas con el campeón correcto
+
+La prueba anterior `36-4` queda descartada para juzgar el ordenamiento: se ejecutó con los pesos self-play 300, posteriormente rechazados.
+
+Esta prueba usa el campeón restaurado `pesos_antes_selfplay_300`, ordenamiento de jugadas activado, `strategy.jugar()`, reparto de reloj `0.5/2.0/16`, 40 partidas reales, semilla 2030 y `--sin-docker`.
+
+Resultado: Monte Carlo 31 - 9 iacasitegano (9/40 = 22.5%), contra la referencia histórica de iacasitegano 6-14 (30%).
+
+**Decisión: orden de jugadas rechazado, 22.5% vs 30% baseline.** Se desactiva en el código activo (`ORDENAMIENTO_JUGADAS = False`); la implementación queda conservada solo como experimento revisable.

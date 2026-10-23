@@ -1,4 +1,4 @@
-"""Bot «joseydaphne»: expectiminimax exacto (usa la probabilidad real del dado,
+"""Bot «iacasitegano»: expectiminimax exacto (usa la probabilidad real del dado,
 no una tirada) + evaluación lineal a mano. Fase 1 del plan del equipo.
 """
 
@@ -16,14 +16,14 @@ import busqueda_numba as _busqueda
 import eval as _eval
 
 RESERVA = 0.3  # fracción del reloj que nunca gastamos pensando (la comunicación también cuesta)
-REPARTO = 20
 # Cuánto más o menos tiempo (relativo al reparto base) le damos a una jugada según qué
 # fracción de las jugadas legales son ataques: más ataques disponibles = posición más
 # táctica = vale más la pena pensarla. En una posición tranquila (sin ataques) gastamos
 # menos de lo normal; en una con TODO ataques, hasta el doble. El tiempo que no se gasta
 # en jugadas tranquilas queda disponible (vía `tiempo_restante`) para las tácticas.
-PESO_MINIMO = 0.7
-PESO_MAXIMO = 2.3
+PESO_MINIMO = 0.5
+PESO_MAXIMO = 2.0
+REPARTO = 16
 
 
 def preparar(config):
