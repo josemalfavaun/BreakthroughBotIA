@@ -257,3 +257,59 @@ Esta prueba usa el campeón restaurado `pesos_antes_selfplay_300`, ordenamiento 
 Resultado: Monte Carlo 31 - 9 iacasitegano (9/40 = 22.5%), contra la referencia histórica de iacasitegano 6-14 (30%).
 
 **Decisión: orden de jugadas rechazado, 22.5% vs 30% baseline.** Se desactiva en el código activo (`ORDENAMIENTO_JUGADAS = False`); la implementación queda conservada solo como experimento revisable.
+
+## Oponentes simples para diversificar self-play
+
+`herramientas/entrenar.py` incorpora dos rivales sencillos, únicamente para generar posiciones
+con estilos distintos:
+
+- `rival_voraz.py`: toma una anotación inmediata o un ataque con probabilidad máxima (`0.80`) si existe; si no, elige una jugada legal al azar.
+- `rival_minimax2.py`: expectiminimax puro de profundidad fija 2, sin Star1, tabla de transposición ni numba.
+
+La mezcla queda en 50% uno mismo, 20% `random`, 20% `montecarlo`, 5% `voraz` y 5% `minimax2`.
+El entrenamiento guarda siempre `data/candidato_<timestamp>.npy`; nunca sobrescribe
+`data/pesos.npy`. Ningún candidato se promueve sin partidas reales contra `montecarlo` y el
+campeón actual. Los rivales y la nueva mezcla están implementados y verificados por smoke test.
+
+
+## Registro de promoción: candidato 20261024
+
+### Qué cambió
+
+Se promovió `data/candidato_20261024_042150.npy` a `data/pesos.npy`. El candidato modifica los
+seis pesos de la evaluación lineal; la búsqueda, el manejo del reloj, el libro de apertura y el
+código de la estrategia no cambiaron en esta promoción.
+
+Pesos registrados por el entrenamiento (`antes -> entrenados`):
+
+| Feature | Antes | Candidato |
+|---|---:|---:|
+| `puntos` | 0.52 | 0.5896 |
+| `avance` | -0.01 | 0.0110 |
+| `apoyo` | 0.01 | 0.0143 |
+| `pasado` | 0.01 | 0.0046 |
+| `columnas_vacias` | 0.08 | 0.0160 |
+| `carrera` | -0.15 | -0.1386 |
+
+### Log de self-play
+
+El contenedor `iacasitegano-entrenar-20261023` ejecutó `python herramientas/entrenar.py` con
+profundidad propia 5, 300 partidas totales y las semillas `1234`, `5678` y `9012` (100 partidas
+por semilla). La mezcla de oponentes fue 50% uno mismo, 20% `random`, 20% `montecarlo`, 5%
+`voraz` y 5% `minimax2`. El log reportó 4,785, 4,717 y 4,616 posiciones por tanda:
+14,118 posiciones en total. El ajuste fue ridge con `lambda=1.0` y guardó el candidato en
+`data/candidato_20261024_042150.npy`; durante el entrenamiento `data/pesos.npy` no se modificó.
+
+### Evaluación oficial candidato-vs-campeón
+
+Se ejecutó el bot real bajo el árbitro y Docker, alternando colores, con 40 partidas y semilla
+2026:
+
+```bash
+./torneo jugar iacasitegano_candidato iacasitegano --partidas 40 --semilla 2026
+```
+
+Resultado: el candidato ganó `22-18` y sumó `87-72` puntos. Por color, el candidato quedó
+`9-11` como blancas y `13-7` como negras. No hubo errores, jugadas ilegales ni timeouts; el
+reloj máximo fue 3.54 s para el candidato y 3.58 s para el campeón, frente al límite de 30 s.
+La promoción se hizo después de esta evaluación.

@@ -1,8 +1,9 @@
 """Genera partidas de self-play (y partidas contra `random`/`montecarlo`, para
 variar las posiciones que vemos) con nuestra propia búsqueda, y ajusta los
 `PESOS` de `eval.py` por regresión lineal (con un poco de regularización)
-contra el resultado final de cada partida. Guarda el resultado en
-`data/pesos.npy`.
+contra el resultado final de cada partida. Guarda el resultado como un
+candidato `data/candidato_<timestamp>.npy`; nunca reemplaza directamente el
+campeón `data/pesos.npy`.
 
 Nada en `herramientas/` corre en la liga (ver docs/avanzado.md). Para
 regenerar los pesos:
@@ -29,6 +30,7 @@ import importlib.util
 import random
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 from types import ModuleType
 
@@ -50,11 +52,21 @@ SEMILLAS = (1234, 5678, 9012)
 LAMBDA_RIDGE = 1.0  # regularización L2: frena pesos inestables por colinealidad entre features
 RELOJ_RIVAL_S = 30.0  # reloj "de a de veras" para random/montecarlo, igual que una partida oficial
 # Fracción de partidas contra cada rival (adentro, siempre jugamos nosotros con nuestra búsqueda).
-OPONENTES = {"uno_mismo": 0.6, "random": 0.2, "montecarlo": 0.2}
+OPONENTES = {
+    "uno_mismo": 0.5,
+    "random": 0.2,
+    "montecarlo": 0.2,
+    "voraz": 0.05,
+    "minimax2": 0.05,
+}
+RIVALES_LOCALES = {
+    "voraz": CARPETA_EQUIPO / "herramientas" / "rival_voraz.py",
+    "minimax2": CARPETA_EQUIPO / "herramientas" / "rival_minimax2.py",
+}
 
 
 def _cargar_strategy(equipo: str) -> ModuleType:
-    ruta = CARPETA_ESTUDIANTES / equipo / "strategy.py"
+    ruta = RIVALES_LOCALES.get(equipo, CARPETA_ESTUDIANTES / equipo / "strategy.py")
     spec = importlib.util.spec_from_file_location(f"strategy_{equipo}", ruta)
     modulo = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(modulo)
@@ -142,6 +154,9 @@ def generar_datos(partidas: int, semilla: int) -> tuple[np.ndarray, np.ndarray]:
         modulos["random"] = _cargar_strategy("random")
     if OPONENTES.get("montecarlo"):
         modulos["montecarlo"] = _cargar_strategy("montecarlo")
+    for nombre in ("voraz", "minimax2"):
+        if OPONENTES.get(nombre):
+            modulos[nombre] = _cargar_strategy(nombre)
 
     xs: list[np.ndarray] = []
     ys: list[float] = []
@@ -177,9 +192,10 @@ def main() -> None:
     print("Pesos (antes -> entrenados):")
     for nombre, antes, nuevo in zip(ev.NOMBRES_FEATURES, ev.PESOS, pesos, strict=True):
         print(f"  {nombre}: {antes:.2f} -> {nuevo:.4f}")
-    destino = CARPETA_EQUIPO / "data" / "pesos.npy"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    destino = CARPETA_EQUIPO / "data" / f"candidato_{timestamp}.npy"
     np.save(destino, pesos)
-    print(f"Guardado en {destino}")
+    print(f"Candidato guardado en {destino}; pesos.npy no se modifica")
 
 
 if __name__ == "__main__":
