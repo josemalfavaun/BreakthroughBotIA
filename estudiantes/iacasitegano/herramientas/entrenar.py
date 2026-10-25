@@ -84,8 +84,12 @@ def _jugador_propio(ganancia: float):
     def mover(estado: Estado, _reloj: float) -> Jugada:
         tablero, puntos, color_idx = bn._tablero_desde_estado(estado)
         pesos = np.ascontiguousarray(ev.PESOS, dtype=np.float64)
-        o, d, _ = bn._mejor_jugada_numba(
-            tablero, puntos, color_idx, PROFUNDIDAD, pesos, ganancia, -1, -1
+        o, d, _, _, _ = bn._mejor_jugada_numba(
+            tablero, puntos, color_idx, PROFUNDIDAD, pesos, ganancia, -1, -1,
+            # Firma nueva de la búsqueda anytime: `contador` (nodos y bandera de
+            # aborto) y `tope` de nodos. Las herramientas buscan a profundidad
+            # fija y no deben abortar nunca, así que el tope va amplio.
+            np.zeros(2, np.int64), 10**12,
         )
         return Jugada(int(o), int(d))
 

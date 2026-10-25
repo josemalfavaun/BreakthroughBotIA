@@ -72,5 +72,8 @@ def jugar(estado: Estado, tiempo_restante: float):
     inicio = time.perf_counter()
     limite = inicio + peso * disponible / REPARTO
     jugada, valor, profundidad = _busqueda.elegir(estado, color, limite)
-    reportar(prof=profundidad, eval=valor, tiempo=time.perf_counter() - inicio)
+    reportar(prof=profundidad, eval=valor, tiempo=time.perf_counter() - inicio,
+             nodos=_busqueda.ULTIMA_BUSQUEDA["nodos"],
+             abortos=_busqueda.ULTIMA_BUSQUEDA["abortos"],
+             parciales=_busqueda.ULTIMA_BUSQUEDA["parciales"])
     return jugada

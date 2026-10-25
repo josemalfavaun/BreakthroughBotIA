@@ -58,7 +58,16 @@ FACTOR_INICIAL = 20.0
 # Confiar solo en la ÚLTIMA transición medida nos hizo perder una partida por reloj
 # (profundidad 5→6 pasó de 0.08s a 9.35s). El piso evita repetirlo: nunca asumimos que el
 # próximo salto será más barato que esto, sin importar qué tan barata haya sido la historia.
-FACTOR_PESIMISTA = 150.0
+FACTOR_PESIMISTA = 150.0  # ya no se usa: lo reemplazó el tope de nodos (ver `elegir`)
+# Búsqueda anytime (INFORME.md 8i). `FRACCION_TOPE`: qué parte del tiempo que queda se
+# apuesta en la siguiente profundidad. No es 1.0 porque los nodos por segundo de la
+# profundidad anterior son una estimación: si la posición se vuelve táctica, los nodos se
+# vuelven más caros y el tiempo real se pasa. Con 0.8 queda margen y, si aun así aborta, no
+# se pierde la jugada (se juega la de la última profundidad completa).
+FRACCION_TOPE = 0.8
+TOPE_MINIMO = 20_000  # nunca abortamos antes de esto: por debajo, el overhead domina
+TOPE_PRIMERA_PROFUNDIDAD = 2_000_000  # profundidad 1 es barata; tope alto = nunca aborta
+ULTIMA_BUSQUEDA = {"nodos": 0, "abortos": 0, "parciales": 0}  # diagnóstico de `elegir`
 TT_BITS = 20
 TT_TAM = 1 << TT_BITS  # potencia de 2: el índice es un AND, no un módulo
 TT_MASCARA = np.uint64(TT_TAM - 1)
@@ -233,13 +242,14 @@ def _ordenar_jugadas_numba(tablero, color, origenes, destinos, n, origen_sugerid
             destinos[i], destinos[mejor] = destinos[mejor], destinos[i]
 
 
+# `contador` (int64[2]) y `tope` cierran las dos firmas: ver `_valor_numba`.
 _FIRMA_VALOR = (
     "float64(int8[::1], int64[::1], int64, int64, int64, float64, float64, float64[::1], float64,"
-    " int64[::1], int64[::1], uint64[::1], float64[::1])"
+    " int64[::1], int64[::1], uint64[::1], float64[::1], int64[::1], int64)"
 )
 _FIRMA_QUIESCENCIA = (
     "float64(int8[::1], int64[::1], int64, int64, float64, float64, float64[::1], float64, int64,"
-    " int64[::1], int64[::1])"
+    " int64[::1], int64[::1], int64[::1], int64)"
 )
 
 
@@ -259,7 +269,7 @@ _FIRMA_QUIESCENCIA = (
 # disponible o features distintas, sí compensa — pero no se activa sin medirlo de nuevo.
 @njit(_FIRMA_QUIESCENCIA, cache=True)
 def _quiescencia_numba(tablero, puntos, color, objetivo, alfa, beta, pesos, ganancia, restante,
-                        origenes, destinos):
+                        origenes, destinos, contador, tope):
     if puntos[0] >= PUNTOS_PARA_GANAR:
         return ganancia if objetivo == 0 else -ganancia
     if puntos[1] >= PUNTOS_PARA_GANAR:
@@ -301,7 +311,7 @@ def _quiescencia_numba(tablero, puntos, color, objetivo, alfa, beta, pesos, gana
         aplicar(t_gana, pt_gana, color, origen, destino, True)
         v1 = _quiescencia_numba(
             t_gana, pt_gana, 1 - color, objetivo, -ganancia, ganancia, pesos, ganancia,
-            restante - 1, o2, d2,
+            restante - 1, o2, d2, contador, tope,
         )
         mejor_caso = p1 * v1 + p2w * ganancia
         peor_caso = p1 * v1 - p2w * ganancia
@@ -317,7 +327,7 @@ def _quiescencia_numba(tablero, puntos, color, objetivo, alfa, beta, pesos, gana
             aplicar(t_pierde, pt_pierde, color, origen, destino, False)
             v2 = _quiescencia_numba(
                 t_pierde, pt_pierde, 1 - color, objetivo, -ganancia, ganancia, pesos, ganancia,
-                restante - 1, o3, d3,
+                restante - 1, o3, d3, contador, tope,
             )
             v = p1 * v1 + p2w * v2
         if es_max:
@@ -342,7 +352,17 @@ def _quiescencia_numba(tablero, puntos, color, objetivo, alfa, beta, pesos, gana
 # que acota la rama que no hace falta ver) va en línea, dentro del ciclo por jugada.
 @njit(_FIRMA_VALOR, cache=True)
 def _valor_numba(tablero, puntos, color, objetivo, profundidad, alfa, beta, pesos, ganancia,
-                  origenes, destinos, tt_claves, tt_valores):
+                  origenes, destinos, tt_claves, tt_valores, contador, tope):
+    """`contador` es un arreglo de 2: `contador[0]` nodos visitados, `contador[1]` bandera
+    de aborto. Al pasar `tope` nodos se marca la bandera y TODOS los niveles regresan de
+    inmediato; el valor que devuelven en ese caso es basura y `elegir` descarta la
+    profundidad entera (ver ahí). `tope <= 0` significa sin tope."""
+    contador[0] += 1
+    if contador[1] != 0:
+        return 0.0  # ya se abortó más abajo: salimos sin tocar nada
+    if tope > 0 and contador[0] > tope:
+        contador[1] = 1
+        return 0.0
     # Igual que `estado.ganador()`: puntos primero, si no, generamos las jugadas para
     # ver si al que le toca ya no tiene ninguna (entonces gana el otro). Generamos UNA
     # sola vez y reusamos `n` para enumerar abajo si no hay poda ni final de partida.
@@ -359,7 +379,7 @@ def _valor_numba(tablero, puntos, color, objetivo, profundidad, alfa, beta, peso
     if profundidad == 0:
         return _quiescencia_numba(
             tablero, puntos, color, objetivo, alfa, beta, pesos, ganancia, QUIESCENCIA_MAX,
-            origenes, destinos,
+            origenes, destinos, contador, tope,
         )
 
     llave = clave(tablero, color, puntos, Z_PIEZAS, Z_TURNO, Z_PUNTOS) ^ np.uint64(profundidad)
@@ -380,7 +400,7 @@ def _valor_numba(tablero, puntos, color, objetivo, profundidad, alfa, beta, peso
             aplicar(t2, p2, color, origen, destino, True)
             v = _valor_numba(
                 t2, p2, 1 - color, objetivo, profundidad - 1, alfa, beta, pesos, ganancia, o2, d2,
-                tt_claves, tt_valores,
+                tt_claves, tt_valores, contador, tope,
             )
         else:
             p1 = prob_jugada(tablero, color, origen, destino)
@@ -390,7 +410,7 @@ def _valor_numba(tablero, puntos, color, objetivo, profundidad, alfa, beta, peso
             aplicar(t_gana, pt_gana, color, origen, destino, True)
             v1 = _valor_numba(
                 t_gana, pt_gana, 1 - color, objetivo, profundidad - 1, -ganancia, ganancia,
-                pesos, ganancia, o2, d2, tt_claves, tt_valores,
+                pesos, ganancia, o2, d2, tt_claves, tt_valores, contador, tope,
             )
             mejor_caso = p1 * v1 + p2w * ganancia
             peor_caso = p1 * v1 - p2w * ganancia
@@ -406,7 +426,7 @@ def _valor_numba(tablero, puntos, color, objetivo, profundidad, alfa, beta, peso
                 aplicar(t_pierde, pt_pierde, color, origen, destino, False)
                 v2 = _valor_numba(
                     t_pierde, pt_pierde, 1 - color, objetivo, profundidad - 1, -ganancia,
-                    ganancia, pesos, ganancia, o3, d3, tt_claves, tt_valores,
+                    ganancia, pesos, ganancia, o3, d3, tt_claves, tt_valores, contador, tope,
                 )
                 v = p1 * v1 + p2w * v2
         if es_max:
@@ -419,11 +439,15 @@ def _valor_numba(tablero, puntos, color, objetivo, profundidad, alfa, beta, peso
                 mejor = v
             if mejor < beta:
                 beta = mejor
+        if contador[1] != 0:
+            # Abortado en un subárbol: `mejor` está a medio calcular. No es una cota, es
+            # basura — salimos sin escribir la TT (la profundidad entera se descarta).
+            return 0.0
         if alfa >= beta:
             exacto = False  # quedaron jugadas sin revisar: esto es una cota, no el valor real
             break
 
-    if exacto and llave != TT_VACIA:
+    if exacto and llave != TT_VACIA and contador[1] == 0:
         tt_claves[idx] = llave
         tt_valores[idx] = mejor
     return mejor
@@ -431,7 +455,7 @@ def _valor_numba(tablero, puntos, color, objetivo, profundidad, alfa, beta, peso
 
 @njit(cache=True)
 def _mejor_jugada_numba(tablero, puntos, color, profundidad, pesos, ganancia, origen_sugerido,
-                         destino_sugerido):
+                         destino_sugerido, contador, tope):
     """Igual que un nodo MAX de `_valor_numba`, pero devolviendo también QUÉ jugada ganó
     (`_valor_numba` por sí solo regresa el valor, no el índice: no sirve para elegir).
     Tabla de transposición nueva por llamada: se reinicia en cada decisión de jugada.
@@ -458,6 +482,7 @@ def _mejor_jugada_numba(tablero, puntos, color, profundidad, pesos, ganancia, or
                 break
     mejor_valor = -ganancia - 1.0
     mejor_i = 0
+    completadas = 0  # jugadas de la raíz cuyo subárbol terminó (no se abortó a media)
     alfa = -ganancia
     for i in range(n):
         origen, destino = origenes[i], destinos[i]
@@ -469,7 +494,7 @@ def _mejor_jugada_numba(tablero, puntos, color, profundidad, pesos, ganancia, or
             aplicar(t2, p2, color, origen, destino, True)
             v = _valor_numba(
                 t2, p2, 1 - color, color, profundidad - 1, alfa, ganancia, pesos, ganancia, o2,
-                d2, tt_claves, tt_valores,
+                d2, tt_claves, tt_valores, contador, tope,
             )
         else:
             p1 = prob_jugada(tablero, color, origen, destino)
@@ -479,7 +504,7 @@ def _mejor_jugada_numba(tablero, puntos, color, profundidad, pesos, ganancia, or
             aplicar(t_gana, pt_gana, color, origen, destino, True)
             v1 = _valor_numba(
                 t_gana, pt_gana, 1 - color, color, profundidad - 1, -ganancia, ganancia, pesos,
-                ganancia, o2, d2, tt_claves, tt_valores,
+                ganancia, o2, d2, tt_claves, tt_valores, contador, tope,
             )
             mejor_caso = p1 * v1 + p2w * ganancia
             if mejor_caso <= alfa:
@@ -492,14 +517,21 @@ def _mejor_jugada_numba(tablero, puntos, color, profundidad, pesos, ganancia, or
                 aplicar(t_pierde, pt_pierde, color, origen, destino, False)
                 v2 = _valor_numba(
                     t_pierde, pt_pierde, 1 - color, color, profundidad - 1, -ganancia, ganancia,
-                    pesos, ganancia, o3, d3, tt_claves, tt_valores,
+                    pesos, ganancia, o3, d3, tt_claves, tt_valores, contador, tope,
                 )
                 v = p1 * v1 + p2w * v2
+        if contador[1] != 0:
+            # Abortado DENTRO de esta jugada de la raíz: su `v` está a medias y se
+            # descarta. Pero las `completadas` anteriores sí tienen valor válido, y
+            # `mejor_i`/`mejor_valor` ya apuntan a la mejor de ellas: se devuelven junto
+            # con la cuenta, y `elegir` decide si las aprovecha (ver INFORME.md 8j).
+            return origenes[mejor_i], destinos[mejor_i], mejor_valor, 1, completadas
+        completadas += 1
         if v > mejor_valor:
             mejor_valor = v
             mejor_i = i
             alfa = mejor_valor
-    return origenes[mejor_i], destinos[mejor_i], mejor_valor
+    return origenes[mejor_i], destinos[mejor_i], mejor_valor, 0, completadas
 
 
 def _tablero_desde_estado(estado: Estado) -> tuple[np.ndarray, np.ndarray, int]:
@@ -514,41 +546,81 @@ def _tablero_desde_estado(estado: Estado) -> tuple[np.ndarray, np.ndarray, int]:
 
 
 def elegir(estado: Estado, color: str, limite_tiempo: float) -> tuple[Jugada, float, int]:
-    """Misma interfaz que `busqueda.elegir`: sube la profundidad mientras alcance el tiempo."""
+    """Misma interfaz que `busqueda.elegir`, pero ANYTIME: abre la siguiente profundidad sin
+    predecir lo que va a costar y, si se pasa del tope de nodos, la abandona y se queda con
+    la jugada de la última profundidad COMPLETA (ver INFORME.md 8i).
+
+    El bot anterior predecía: solo abría la profundidad siguiente si le alcanzaba para
+    `duracion × 300` (`FACTOR_PESIMISTA × MARGEN_SEGURIDAD`). Medido, eso lo dejaba usando
+    ~1% de su presupuesto y jugando a profundidad 3 (INFORME.md 8h). Aquí el tope se
+    calibra con los nodos por segundo REALES de la última profundidad completa y el tiempo
+    que de verdad queda, así que no hay constante que adivine nada."""
     tablero, puntos, color_idx = _tablero_desde_estado(estado)
     pesos = np.asarray(ev.PESOS, dtype=np.float64)
     ganancia = ev.cota() + 100.0
 
     jugadas = estado.jugadas()
     mejor_jugada, mejor_valor, mejor_profundidad = jugadas[0], 0.0, 0
-    tiempo_anterior = None
+    nodos_por_segundo = 0.0
     profundidad = 1
     origen_sugerido, destino_sugerido = -1, -1  # nada todavía: es la primera profundidad
+    nodos_totales = 0
+    abortos = 0
+    parciales = 0  # profundidades abortadas que aun así aportaron una jugada
 
     while profundidad <= PROFUNDIDAD_MAXIMA:
+        restante = limite_tiempo - time.perf_counter()
+        if restante <= 0.0:
+            break
+        # Tope de nodos para ESTA profundidad: lo que caben en el tiempo que queda, según
+        # la velocidad medida recién. La primera profundidad no tiene medición todavía, y
+        # es la barata: va con un tope fijo generoso (y es la que garantiza que siempre
+        # haya una jugada completa de respaldo).
+        if nodos_por_segundo > 0.0:
+            tope = int(nodos_por_segundo * restante * FRACCION_TOPE)
+            if tope < TOPE_MINIMO:
+                tope = TOPE_MINIMO
+        else:
+            tope = TOPE_PRIMERA_PROFUNDIDAD
+        contador = np.zeros(2, np.int64)
+
         inicio = time.perf_counter()
-        o, d, valor = _mejor_jugada_numba(
+        o, d, valor, abortado, completadas = _mejor_jugada_numba(
             tablero, puntos, color_idx, profundidad, pesos, ganancia, origen_sugerido,
-            destino_sugerido,
+            destino_sugerido, contador, tope,
         )
         duracion = time.perf_counter() - inicio
+        nodos_totales += int(contador[0])
+
+        if abortado:
+            abortos += 1
+            # Profundidad incompleta. La jugada que se quedó a media se descarta siempre,
+            # pero las que SÍ terminaron su subárbol tienen valor válido: la raíz prueba
+            # primero la mejor de la profundidad anterior, así que con 2 o más terminadas
+            # estamos eligiendo entre esa y al menos una alternativa, ya a esta
+            # profundidad. Con una sola terminada no hay con qué comparar (sería la misma
+            # jugada de siempre), así que se conserva la última profundidad completa.
+            if completadas >= 2:
+                mejor_jugada = Jugada(int(o), int(d))
+                mejor_valor = valor
+                parciales += 1
+                # `mejor_profundidad` NO se actualiza: esta profundidad quedó incompleta y
+                # reportarla como alcanzada sería mentirle al diagnóstico.
+            break
+
         mejor_jugada = Jugada(int(o), int(d))
         mejor_valor, mejor_profundidad = valor, profundidad
         origen_sugerido, destino_sugerido = int(o), int(d)
-        if time.perf_counter() >= limite_tiempo:
-            break
-        # Sin contador de nodos expuesto desde numba (no vale la pena el overhead):
-        # usamos la razón de TIEMPO entre profundidades consecutivas como factor de
-        # crecimiento medido, igual de válido que contar nodos para esta decisión. Pero
-        # nunca confiamos en que el próximo salto sea más barato que el piso pesimista:
-        # una posición tranquila puede volverse táctica de una profundidad a la siguiente.
-        factor_medido = duracion / tiempo_anterior if tiempo_anterior else FACTOR_INICIAL
-        factor = max(factor_medido, FACTOR_PESIMISTA)
-        tiempo_anterior = duracion
-        if limite_tiempo - time.perf_counter() < duracion * factor * MARGEN_SEGURIDAD:
-            break
+        if duracion > 0.0:
+            nodos_por_segundo = contador[0] / duracion
         profundidad += 1
 
+    # Diagnóstico de la última decisión, para que `strategy.jugar` lo reporte junto con
+    # `prof`/`eval` (así se ve en `-v` y en el visor). `abortos` tiene que ser 0 casi
+    # siempre: si sube, el tope de nodos está mal calibrado.
+    ULTIMA_BUSQUEDA["nodos"] = nodos_totales
+    ULTIMA_BUSQUEDA["abortos"] = abortos
+    ULTIMA_BUSQUEDA["parciales"] = parciales
     return mejor_jugada, mejor_valor, mejor_profundidad
 
 
@@ -556,4 +628,5 @@ def calentar() -> None:
     """Fuerza la compilación de numba (tarda segundos): llamar en `preparar`, fuera del reloj."""
     tablero, puntos, color = _tablero_desde_estado(Estado.inicial())
     pesos = np.asarray(ev.PESOS, dtype=np.float64)
-    _mejor_jugada_numba(tablero, puntos, color, 1, pesos, ev.cota() + 100.0, -1, -1)
+    _mejor_jugada_numba(tablero, puntos, color, 1, pesos, ev.cota() + 100.0, -1, -1,
+                        np.zeros(2, np.int64), TOPE_PRIMERA_PROFUNDIDAD)  # 5 valores
