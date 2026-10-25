@@ -313,3 +313,59 @@ Resultado: el candidato ganó `22-18` y sumó `87-72` puntos. Por color, el cand
 `9-11` como blancas y `13-7` como negras. No hubo errores, jugadas ilegales ni timeouts; el
 reloj máximo fue 3.54 s para el candidato y 3.58 s para el campeón, frente al límite de 30 s.
 La promoción se hizo después de esta evaluación.
+
+
+## Evaluación del libro regenerado y mezcla por color (2026-10-24)
+
+Se regeneró el libro con los pesos promovidos usando el protocolo de `herramientas/libro_apertura.py`:
+300 partidas de self-play, semillas `4242`, `5151` y `6262`, profundidad 4, cuatro primeras
+jugadas propias, mínimo 10 muestras y ventaja mínima de 0.08. Produjo 8 entradas. El libro previo,
+respaldado antes de regenerar, también tenía 8.
+
+La comparación aisló el libro: las variantes tenían el mismo código y los mismos pesos
+(`pesos.npy`, SHA-256 `d5cc25eefa365de7f912fc65615576e8fbdb8c646bff8da96283bedeb570064f`), y solo
+cambiaba `data/libro.json`. Se usó `./torneo jugar ... --partidas 40` con Docker y colores
+alternados:
+
+| Semilla | Variante nueva | Actual | Puntos nueva–actual | Nueva como blancas | Nueva como negras |
+|---:|---:|---:|---:|---:|---:|
+| 2031 | 25–15 | 15–25 | 92–77 | 17–3 | 8–12 |
+| 2032 | 16–24 | 24–16 | 78–89 | 9–11 | 7–13 |
+| **Total, 80 partidas** | **41–39** | **39–41** | **170–166** | **26–14** | **15–25** |
+
+No hubo errores ni timeouts. El reloj máximo fue 2.03 s para la variante nueva y 1.95 s para la
+actual en la semilla 2031; 4.51 s y 3.87 s, respectivamente, en la 2032. El resultado combinado
+casi empata y la diferencia por color se repitió: el libro nuevo rinde mejor como blancas y peor
+como negras. Visores: [semilla 2031](../../resultados/2026-10-24_18-16-37/index.html) y
+[semilla 2032](../../resultados/2026-10-24_18-27-37/index.html).
+
+### Prueba de libro mixto
+
+El formato permite seleccionar entradas por color: la clave Zobrist incluye turno, y el par
+`[origen, destino]` también lo identifica porque Blancas avanzan a un índice mayor y Negras a uno
+menor (`fila * 9 + columna`). `herramientas/mezclar_libros_eval.py` construye una variante con las
+4 entradas blancas del libro nuevo y las entradas negras del libro actual; el total quedó en 8.
+Esta mezcla se evaluó en 40 partidas oficiales con Docker, colores alternados y semilla `2033`,
+contra el libro actual completo:
+
+| Variante | Victorias | Puntos | Blancas | Negras | Reloj máximo |
+|---|---:|---:|---:|---:|---:|
+| Mixto | 21 | 80 | 12–8 | 9–11 | 2.90 s |
+| Libro actual | 19 | 75 | 11–9 | 8–12 | 2.81 s |
+
+La tanda de confirmación repitió el protocolo con semilla `2034`:
+
+| Semilla | Variante | Victorias | Puntos | Blancas | Negras | Reloj máximo |
+|---:|---|---:|---:|---:|---:|---:|
+| 2034 | Mixto | 22 | 90 | 13–7 | 9–11 | 3.55 s |
+| 2034 | Libro actual | 18 | 81 | 11–9 | 7–13 | 3.40 s |
+
+No hubo errores ni timeouts en ninguna tanda. **Agregado de 80 partidas mixto-vs-actual:** el
+mixto ganó `43–37` y anotó `170–156` puntos. Por color, el mixto quedó `25–15` como blancas y
+`18–22` como negras. Ganó ambas tandas (21–19 y 22–18), cumpliendo el criterio de evidencia. Tras
+la confirmación del usuario, el libro mixto se promovió a `data/libro.json`. El JSON del libro
+mixto se conservó en el historial de Git; los libros de evaluación permanecen respaldados fuera
+del equipo.
+
+Visores: [mixto, semilla 2033](../../resultados/2026-10-24_18-59-07/index.html) y
+[mixto, semilla 2034](../../resultados/2026-10-24_19-16-17/index.html).
