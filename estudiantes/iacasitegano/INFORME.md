@@ -90,7 +90,7 @@ resto, cada jugada arranca con `1/16` de lo disponible, escalado entre 0.5× y 2
 fracción de las jugadas legales son ataques (más ataques = posición más táctica). Dentro de ese
 presupuesto manda el anytime de la sección 3. Sin tiempo, se juega una legal al azar.
 
-Medido con el árbitro en 400 partidas: reloj máximo nuestro **18.1 s de 30 s**, cero timeouts,
+Medido con el árbitro en 400 partidas: reloj máximo nuestro **17.98 s de 30 s**, cero timeouts,
 cero jugadas ilegales. El reparto `0.5/2.0/16` se eligió midiendo tres configuraciones.
 
 ## 7. Resultados vs random y montecarlo
