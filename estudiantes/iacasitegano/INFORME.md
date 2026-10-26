@@ -61,8 +61,8 @@ corre en la liga ni toca el bot entregado.
 `libro.json` da la jugada recomendada en las primeras 4 jugadas propias donde self-play la vio
 ganar claramente más que la segunda; `strategy.jugar()` la revalida y nunca es obligatoria. El
 vigente es mixto (blancas del candidato nuevo, negras del anterior), elegido con 80 partidas en
-dos semillas (43-37, 25-15 como blancas) por la asimetría de color. Los demás `.npy` son
-checkpoints históricos que el runtime no carga.
+dos semillas (43-37, 25-15 como blancas) por la asimetría de color, con el bot anterior al
+anytime. Los demás `.npy` son checkpoints históricos que el runtime no carga.
 
 ## 6. Manejo del reloj
 
@@ -124,9 +124,9 @@ este repositorio.
 | **Rollouts en la raíz** | En 50 posiciones de final aciertan la mejor de 4 candidatas el **36 %** vs **76 %** de la búsqueda |
 | **Pesos de partidas reales** | 1 621 partidas y 160 234 posiciones (partición por partida): mejor signo en el retenido, pero **98-102** (IC 42.2-55.9) y se especializarían en `montecarlo` (`medicion/pesosreales_200_20261025_164748`) |
 | **Barrido ridge** | 4 × 100 partidas vs su control: 46-54 (45-55), 48-52 (47-53), 47-53 (41-59), 44-56 (51-49). Ninguna gana (`mediciones/ridge_*`) |
-| **`ventaja_carrera_exacta`** | 40 partidas sin Docker: **3-37**, con peso aprendido negativo. Muestra chica, margen enorme |
-| **Tablas de finales** (1v1, 2v1, 1v2) | Verificadas (simetría sobre 92 178 estados), pero **0 de 80 partidas llegaron a ese material**. No se entregan |
-| **Quiescencia** | Mismas victorias, menos puntos. Desactivada |
+| **`ventaja_carrera_exacta`** | 40 partidas sin Docker **con el bot anterior al anytime**: **3-37**, con peso aprendido negativo. Muestra chica, margen enorme |
+| **Tablas de finales** (1v1, 2v1, 1v2) | Verificadas (simetría sobre 92 178 estados), pero **0 de 80 partidas llegaron a ese material** (bot anterior al anytime). No se entregan |
+| **Quiescencia** | Mismas victorias, menos puntos, con el bot anterior al anytime. Desactivada |
 
 **Dos bugs que encontramos midiendo:**
 
