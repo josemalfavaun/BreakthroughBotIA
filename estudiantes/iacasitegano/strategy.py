@@ -12,8 +12,7 @@ import numpy as np
 
 from motor import Estado, Jugada, reportar
 
-import busqueda_numba as _busqueda
-import eval as _eval
+import busqueda_eval3 as _busqueda
 
 RESERVA = 0.3  # fracción del reloj que nunca gastamos pensando (la comunicación también cuesta)
 # Cuánto más o menos tiempo (relativo al reparto base) le damos a una jugada según qué
@@ -24,6 +23,7 @@ RESERVA = 0.3  # fracción del reloj que nunca gastamos pensando (la comunicaci�
 PESO_MINIMO = 0.5
 PESO_MAXIMO = 2.0
 REPARTO = 16
+PESOS_EVAL3 = "pesos_eval3_ligero.npz"
 
 
 def preparar(config):
@@ -31,12 +31,11 @@ def preparar(config):
     color = config.color  # evaluamos SIEMPRE desde nuestro color
     rng = random.Random(config.semilla)
     reserva = RESERVA * config.reloj_s
-    # Si `herramientas/entrenar.py` ya generó pesos con self-play, los usamos;
-    # si no existe el archivo (antes de entrenar, o en --sin-docker sin carpeta
-    # de datos), seguimos con los pesos a mano de `eval.py`.
-    ruta_pesos = config.carpeta_datos / "pesos.npy"
+    # Los pesos eval3 son un NPZ empaquetado con familias de features activas.
+    ruta_pesos = config.carpeta_datos / PESOS_EVAL3
     if ruta_pesos.exists():
-        _eval.cargar_pesos(np.load(ruta_pesos))
+        with np.load(ruta_pesos) as datos:
+            _busqueda.cargar_pesos(datos["pesos"])
     # Libro de apertura (herramientas/libro_apertura.py): {clave del tablero: [origen, destino]},
     # solo para las primeras jugadas. Si no existe el archivo, `libro` queda vacío y `jugar`
     # siempre busca en vivo — el libro nunca es obligatorio.

@@ -7,8 +7,8 @@ Jose (000213398) y Daphne (000211927).
 Expectiminimax exacto: para cada jugada usamos la probabilidad real del dado que ya nos da el
 motor (`estado.siguiente(j)`), nunca una tirada muestreada. Buscamos con poda alfa-beta (y una
 poda tipo Star1 en los nodos de azar) + tabla de transposición + profundización iterativa, hasta
-donde alcance el reloj. La posición se mide con una evaluación lineal (puntos, avance, apoyo,
-peones pasados, columnas abandonadas) cuyos pesos se ajustan con self-play, no a mano.
+donde alcance el reloj. La evaluación vigente usa pesos de regresión logística para puntos,
+patrones, filas y marcador; se ajustaron contra resultados reales de partidas.
 
 ## 3. Búsqueda (algoritmo y por qué)
 Expectiminimax con poda alfa-beta en los nodos de decisión y una poda Star1 en los de azar:
@@ -45,7 +45,13 @@ Validada con la misma prueba diferencial: 32 comparaciones, idénticas. Medida: 
 ~32% más rápido, profundidad 7 ~47% más rápido que sin TT.
 
 ## 4. Función de evaluación
-Lineal: `evaluar(estado, color) = PESOS @ features(estado, color)`. Las features (siempre "propio
+**Evaluación vigente (2026-10-26):** `strategy.py` usa `busqueda_eval3.py` y `eval3.py`, con el
+archivo empaquetado `data/pesos_eval3_ligero.npz`. Sus familias activas son puntos, patrones,
+filas y marcador; las familias caras que el candidato ablacionó permanecen apagadas. La
+evaluación lineal de seis features descrita debajo corresponde al modelo anterior y sigue en
+`eval.py` para compatibilidad con herramientas existentes; ya no es la que carga la estrategia.
+
+El modelo anterior era lineal: `evaluar(estado, color) = PESOS @ features(estado, color)`. Las features (siempre "propio
 menos rival"):
 - **puntos**: diferencia de puntos anotados.
 - **avance**: filas ya avanzadas, sumadas sobre todos los peones.
@@ -68,7 +74,14 @@ cuadrados con regularización ridge) y se guardan en `data/pesos.npy`. `strategy
 carga si el archivo existe.
 
 ## 5. Precomputación (qué y cómo regenerarla)
-`data/pesos.npy`: los 6 pesos de la evaluación. Se regeneran con:
+La estrategia vigente carga `data/pesos_eval3_ligero.npz` (puntos + patrones + filas + marcador).
+El SHA-256 integrado es `37678d0bd700c27a29d0084558158db1a65b01409dbf54828e89706441c2250b`.
+`data/pesos.npy` contiene el vector lineal anterior y se conservó junto a
+`data/pesos_antes_eval3_ligero_20261026.npy` como respaldo reversible; `strategy.preparar()` ya
+no lo carga. La generación del candidato está descrita en el registro de integración de la
+sección final y en el veredicto externo citado allí.
+
+El modelo lineal anterior (`data/pesos.npy`, seis pesos) se regeneraba con:
 
 ```bash
 cd estudiantes/iacasitegano
@@ -211,6 +224,17 @@ que de otra forma hubiera llegado a la liga oficial sin que lo notáramos.
   peso de "pasado" tras el primer diagnóstico) y las dos veces perdimos 0-20 contra `montecarlo`
   en partidas reales. Primera corrida de entrenamiento (60 partidas solo contra uno mismo) tampoco
   alcanzó; ver sección 7.
+- **Star2 (sondeo en nodos de azar):** la implementamos en una copia experimental y la verificamos
+  contra expectiminimax exhaustivo en 2,000 posiciones, sin diferencias de valor ni de mejor
+  jugada, con la TT activada y desactivada. Con el mismo tope de nodos solo aumentó la profundidad
+  media **0.032 niveles**. La implementación es correcta, pero esa ganancia no justifica añadir su
+  complejidad y riesgo al buscador; conservamos Star1. Detalle: `/Users/josema/noche_salida/lab/star2_auditoria.md`.
+- **Finales exactos y detector de carrera pura:** las tablas 1v1/2v1 y el detector se construyeron
+  y verificaron contra el motor; el detector tuvo cero falsos positivos en todo el dominio 1v1.
+  Sin embargo, al instrumentarlo en 80 partidas reales contra `montecarlo` con material completo,
+  no se activó en ninguna de las **3,323 decisiones**. El trabajo es correcto, pero hoy no ofrece
+  una oportunidad medible contra ese rival y material; no se integra por ahora. Verificación:
+  `/Users/josema/noche_salida/lab/verificacion_carrera_antigravity.md`.
 
 ## 9. Fuentes y uso de IA
 Russell y Norvig, *Artificial Intelligence: A Modern Approach*, capítulo de juegos (expectiminimax,
@@ -369,3 +393,48 @@ del equipo.
 
 Visores: [mixto, semilla 2033](../../resultados/2026-10-24_18-59-07/index.html) y
 [mixto, semilla 2034](../../resultados/2026-10-24_19-16-17/index.html).
+
+
+## Registro de integración local: eval3 ligero y optimización de `pasado` (2026-10-26)
+
+### Cambio en la evaluación y pesos
+
+Se conectó la estrategia a `busqueda_eval3.py`/`eval3.py` y se copió
+`data/pesos_eval3_ligero.npz` (SHA-256
+`37678d0bd700c27a29d0084558158db1a65b01409dbf54828e89706441c2250b`). El modelo usa las
+familias puntos, patrones, filas y marcador. Antes de reemplazar cualquier peso, se guardó el
+vector lineal previo en `data/pesos_antes_eval3_ligero_20261026.npy`.
+
+### Evaluación oficial pareada y SPRT
+
+Dos tandas de 400 partidas pareadas contra `noche_nodos`, con presupuesto idéntico de 204,246
+nodos por jugada y colores alternados, dieron **438–362 en 800 partidas** para eval3 ligero.
+Wilson 95%: **51.3–58.2%**. Con H0=50%, H1=55% y α=β=0.05, el logLR acumulado fue **+3.605**,
+que cruza el límite superior +2.944 a favor de H1. El conjunto tuvo 784 finales por puntos y
+16 derrotas por `preparar`; cero derrotas por reloj, jugadas ilegales o excepciones. La tasa
+puntual (54.75%) queda ligeramente debajo de 55%, aunque el SPRT configurado sí cruza H1.
+
+Reporte y datos: `/Users/josema/vs code/BreakthroughBotIA-codex/resultados/medicion/`:
+`eval3_ligero_vs_nodos_400_20261026_113948/` y
+`eval3_ligero_vs_nodos_400_seed10000_20261026_131429/`.
+El protocolo, el cómputo acumulado y los fallos de preparación están en
+`/Users/josema/noche_salida/lab/veredicto_eval3_ligero.md`.
+
+### Optimización de `pasado`
+
+Se sustituyó el escaneo repetido de filas por extremos de fila por columna en `eval.py` y en
+`eval3.py`. El diferencial previo comparó 5,000 posiciones reales más 500 sintéticas (33,000
+comparaciones de features) con **cero diferencias bit a bit**; el benchmark midió 1.09× en la
+función y estimó 4.6% menos costo total de `_features_numba` bajo su supuesto de participación
+de costo. Esa cifra es estimada, no una medición integral del buscador.
+
+La regresión sobre la versión integrada repitió 5,000 posiciones reales: 20,000 comparaciones
+bit a bit de `evaluar_nb` con cero fallos y 159,906 checks de la condición `pasado` de `eval.py`
+con cero fallos. El smoke del bot integrado contra `montecarlo` terminó 20/20 por puntos, con
+resultado 13–7, sin timeouts, jugadas ilegales, excepciones ni salidas no vacías; reloj máximo
+del bot 16.707 s y profundidad media 4.695.
+Los JSON y visores del smoke están en `/Users/josema/noche_salida/lab/smoke_eval3_ligero_20/`.
+
+El protocolo, las cifras de microbenchmark y la verificación anterior están en
+`/Users/josema/noche_salida/lab/optimizacion_pasado_base.md`. La integración está en el working
+tree para revisión; no se ha hecho commit.

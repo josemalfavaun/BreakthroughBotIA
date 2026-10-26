@@ -91,7 +91,7 @@ def _apoyo_propio(casillas: set[int], casilla: int, color: str) -> int:
     return total
 
 
-def _pasado(casillas_rivales: set[int], casilla: int, color: str) -> bool:
+def _pasado(filas_rivales_por_columna: tuple[list[int], list[int]], casilla: int, color: str) -> bool:
     """True si ningún peón rival puede bloquear ni capturar a este peón antes de su meta.
 
     Revisa las tres columnas (la suya y las dos vecinas) en todas las filas que le
@@ -103,19 +103,27 @@ def _pasado(casillas_rivales: set[int], casilla: int, color: str) -> bool:
     """
     fila = casilla // LADO
     col = casilla % LADO
-    columnas = [c for c in (col - 1, col, col + 1) if 0 <= c < LADO]
-    filas_adelante = range(fila + 1, LADO) if color == "blancas" else range(0, fila)
-    return not any(f * LADO + c in casillas_rivales for f in filas_adelante for c in columnas)
+    fila_minima, fila_maxima = filas_rivales_por_columna
+    if color == "blancas":
+        return all(fila_maxima[c] <= fila for c in range(max(0, col - 1), min(LADO, col + 2)))
+    return all(fila_minima[c] >= fila for c in range(max(0, col - 1), min(LADO, col + 2)))
 
 
 def _features_bando(estado: Estado, color: str, casillas_rivales: set[int]) -> np.ndarray:
     casillas = {casilla_de_texto(t) for t in estado.piezas(color)}
+    fila_minima = [LADO] * LADO
+    fila_maxima = [-1] * LADO
+    for casilla_rival in casillas_rivales:
+        fila_rival, columna_rival = divmod(casilla_rival, LADO)
+        fila_minima[columna_rival] = min(fila_minima[columna_rival], fila_rival)
+        fila_maxima[columna_rival] = max(fila_maxima[columna_rival], fila_rival)
+    filas_rivales_por_columna = (fila_minima, fila_maxima)
     avance = apoyo = pasado = 0
     for c in casillas:
         a = _avance(c // LADO, color)
         avance += a
         apoyo += _apoyo_propio(casillas, c, color)
-        if _pasado(casillas_rivales, c, color):
+        if _pasado(filas_rivales_por_columna, c, color):
             pasado += a
     columnas_ocupadas = {c % LADO for c in casillas}
     columnas_vacias = LADO - len(columnas_ocupadas)
