@@ -45,3 +45,9 @@ docker-compose.override.yml
 *~
 .DS_Store
 Thumbs.db
+estudiantes/iacasitegano/*.log
+estudiantes/iacasitegano/paso*.py
+estudiantes/iacasitegano/finalizar_*.py
+estudiantes/iacasitegano/herramientas/continuar_comparaciones.py
+estudiantes/iacasitegano/herramientas/finalizar_300.py
+estudiantes/iacasitegano/herramientas/verificar_orden_jugadas.py

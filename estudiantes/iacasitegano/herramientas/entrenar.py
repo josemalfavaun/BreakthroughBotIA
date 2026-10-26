@@ -1,13 +1,14 @@
 """Genera partidas de self-play (y partidas contra `random`/`montecarlo`, para
 variar las posiciones que vemos) con nuestra propia búsqueda, y ajusta los
 `PESOS` de `eval.py` por regresión lineal (con un poco de regularización)
-contra el resultado final de cada partida. Guarda el resultado en
-`data/pesos.npy`.
+contra el resultado final de cada partida. Guarda el resultado como un
+candidato `data/candidato_<timestamp>.npy`; nunca reemplaza directamente el
+campeón `data/pesos.npy`.
 
 Nada en `herramientas/` corre en la liga (ver docs/avanzado.md). Para
 regenerar los pesos:
 
-    cd estudiantes/joseydaphne
+    cd estudiantes/iacasitegano
     python herramientas/entrenar.py
 
 Primera corrida (60 partidas, solo contra uno mismo): no alcanzó para ganarle
@@ -29,6 +30,7 @@ import importlib.util
 import random
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 from types import ModuleType
 
@@ -44,17 +46,27 @@ from motor import Estado, Jugada  # noqa: E402
 import busqueda_numba as bn  # noqa: E402
 import eval as ev  # noqa: E402
 
-PARTIDAS = 150  # a profundidad 5 cada partida tarda ~4x más que a profundidad 4: menos partidas
+PARTIDAS_POR_SEMILLA = 100
 PROFUNDIDAD = 5  # barata gracias a numba+TT (~0.1-0.15s/jugada); antes del port, 2 era el límite
-SEMILLA = 1234
+SEMILLAS = (1234, 5678, 9012)
 LAMBDA_RIDGE = 1.0  # regularización L2: frena pesos inestables por colinealidad entre features
 RELOJ_RIVAL_S = 30.0  # reloj "de a de veras" para random/montecarlo, igual que una partida oficial
 # Fracción de partidas contra cada rival (adentro, siempre jugamos nosotros con nuestra búsqueda).
-OPONENTES = {"uno_mismo": 0.6, "random": 0.2, "montecarlo": 0.2}
+OPONENTES = {
+    "uno_mismo": 0.5,
+    "random": 0.2,
+    "montecarlo": 0.2,
+    "voraz": 0.05,
+    "minimax2": 0.05,
+}
+RIVALES_LOCALES = {
+    "voraz": CARPETA_EQUIPO / "herramientas" / "rival_voraz.py",
+    "minimax2": CARPETA_EQUIPO / "herramientas" / "rival_minimax2.py",
+}
 
 
 def _cargar_strategy(equipo: str) -> ModuleType:
-    ruta = CARPETA_ESTUDIANTES / equipo / "strategy.py"
+    ruta = RIVALES_LOCALES.get(equipo, CARPETA_ESTUDIANTES / equipo / "strategy.py")
     spec = importlib.util.spec_from_file_location(f"strategy_{equipo}", ruta)
     modulo = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(modulo)
@@ -72,8 +84,12 @@ def _jugador_propio(ganancia: float):
     def mover(estado: Estado, _reloj: float) -> Jugada:
         tablero, puntos, color_idx = bn._tablero_desde_estado(estado)
         pesos = np.ascontiguousarray(ev.PESOS, dtype=np.float64)
-        o, d, _ = bn._mejor_jugada_numba(
-            tablero, puntos, color_idx, PROFUNDIDAD, pesos, ganancia, -1, -1
+        o, d, _, _, _ = bn._mejor_jugada_numba(
+            tablero, puntos, color_idx, PROFUNDIDAD, pesos, ganancia, -1, -1,
+            # Firma nueva de la búsqueda anytime: `contador` (nodos y bandera de
+            # aborto) y `tope` de nodos. Las herramientas buscan a profundidad
+            # fija y no deben abortar nunca, así que el tope va amplio.
+            np.zeros(2, np.int64), 10**12,
         )
         return Jugada(int(o), int(d))
 
@@ -133,12 +149,18 @@ def _elegir_rival(rng: random.Random, modulos: dict[str, ModuleType | None]) -> 
 
 def generar_datos(partidas: int, semilla: int) -> tuple[np.ndarray, np.ndarray]:
     rng = random.Random(semilla)
+    ruta_pesos_actuales = CARPETA_EQUIPO / "data" / "pesos.npy"
+    if ruta_pesos_actuales.exists():  # jugamos con los últimos pesos aceptados, no los de fábrica
+        ev.cargar_pesos(np.load(ruta_pesos_actuales))
     ganancia = ev.cota() + 100.0
     modulos: dict[str, ModuleType | None] = {"uno_mismo": None}
     if OPONENTES.get("random"):
         modulos["random"] = _cargar_strategy("random")
     if OPONENTES.get("montecarlo"):
         modulos["montecarlo"] = _cargar_strategy("montecarlo")
+    for nombre in ("voraz", "minimax2"):
+        if OPONENTES.get(nombre):
+            modulos[nombre] = _cargar_strategy(nombre)
 
     xs: list[np.ndarray] = []
     ys: list[float] = []
@@ -163,16 +185,21 @@ def ajustar_pesos(xs: np.ndarray, ys: np.ndarray, lam: float) -> np.ndarray:
 
 
 def main() -> None:
-    print(f"Generando {PARTIDAS} partidas (oponentes: {OPONENTES}, profundidad propia {PROFUNDIDAD})...")
-    xs, ys = generar_datos(PARTIDAS, SEMILLA)
+    total = PARTIDAS_POR_SEMILLA * len(SEMILLAS)
+    print(f"Generando {total} partidas (semillas: {SEMILLAS}; "
+          f"oponentes: {OPONENTES}, profundidad propia {PROFUNDIDAD})...")
+    lotes = [generar_datos(PARTIDAS_POR_SEMILLA, semilla) for semilla in SEMILLAS]
+    xs = np.concatenate([lote[0] for lote in lotes])
+    ys = np.concatenate([lote[1] for lote in lotes])
     print(f"{len(xs)} posiciones. Ajustando pesos (ridge, lambda={LAMBDA_RIDGE})...")
     pesos = ajustar_pesos(xs, ys, LAMBDA_RIDGE)
     print("Pesos (antes -> entrenados):")
     for nombre, antes, nuevo in zip(ev.NOMBRES_FEATURES, ev.PESOS, pesos, strict=True):
         print(f"  {nombre}: {antes:.2f} -> {nuevo:.4f}")
-    destino = CARPETA_EQUIPO / "data" / "pesos.npy"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    destino = CARPETA_EQUIPO / "data" / f"candidato_{timestamp}.npy"
     np.save(destino, pesos)
-    print(f"Guardado en {destino}")
+    print(f"Candidato guardado en {destino}; pesos.npy no se modifica")
 
 
 if __name__ == "__main__":

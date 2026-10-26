@@ -12,7 +12,7 @@ entrenados, no los de mano.
 No corre en la liga.
 
 Uso:
-    cd estudiantes/joseydaphne
+    cd estudiantes/iacasitegano
     python herramientas/libro_apertura.py
 """
 
@@ -35,13 +35,13 @@ from motor import Estado, Jugada  # noqa: E402
 import busqueda_numba as bn  # noqa: E402
 import eval as ev  # noqa: E402
 
-PARTIDAS = 60
+PARTIDAS_POR_SEMILLA = 100
 PROFUNDIDAD = 4  # barata: solo nos importa que todas las partidas vean las MISMAS aperturas
 PLIES_LIBRO = 4  # cuántas de nuestras jugadas cubre el libro (las primeras, las más repetidas)
 MUESTRAS_MINIMAS = 10  # no metemos una entrada sin haberla visto al menos esta cantidad de veces
 VENTAJA_MINIMA = 0.08  # solo si la mejor jugada ganó claramente más que la segunda: si no, que
 # decida la búsqueda en vivo (no vale la pena congelar una apertura dudosa)
-SEMILLA = 4242
+SEMILLAS = (4242, 5151, 6262)
 
 
 def _jugar_partida(rng: random.Random, pesos: np.ndarray, ganancia: float):
@@ -54,8 +54,12 @@ def _jugar_partida(rng: random.Random, pesos: np.ndarray, ganancia: float):
     while not estado.terminado():
         color = estado.turno
         tablero, puntos, color_idx = bn._tablero_desde_estado(estado)
-        o, d, _ = bn._mejor_jugada_numba(
-            tablero, puntos, color_idx, PROFUNDIDAD, pesos, ganancia, -1, -1
+        o, d, _, _, _ = bn._mejor_jugada_numba(
+            tablero, puntos, color_idx, PROFUNDIDAD, pesos, ganancia, -1, -1,
+            # Firma nueva de la búsqueda anytime: `contador` (nodos y bandera de
+            # aborto) y `tope` de nodos. Las herramientas buscan a profundidad
+            # fija y no deben abortar nunca, así que el tope va amplio.
+            np.zeros(2, np.int64), 10**12,
         )
         if color == nuestro_color and ply_propio < PLIES_LIBRO:
             posiciones.append((estado.clave, int(o), int(d)))
@@ -67,23 +71,30 @@ def _jugar_partida(rng: random.Random, pesos: np.ndarray, ganancia: float):
     return posiciones, gano
 
 
-def generar_libro(partidas: int, semilla: int) -> dict[str, list[int]]:
-    rng = random.Random(semilla)
+def generar_libro(partidas_por_semilla: int, semillas: tuple[int, ...]) -> dict[str, list[int]]:
+    ruta_pesos_actuales = CARPETA_EQUIPO / "data" / "pesos.npy"
+    if ruta_pesos_actuales.exists():  # los pesos entrenados, no los de mano (ver docstring)
+        ev.cargar_pesos(np.load(ruta_pesos_actuales))
     ganancia = ev.cota() + 100.0
     pesos = np.ascontiguousarray(ev.PESOS, dtype=np.float64)
     # conteo[clave][(origen, destino)] = [victorias, total]
     conteo: dict[int, dict[tuple[int, int], list[int]]] = {}
     inicio = time.perf_counter()
-    for i in range(partidas):
-        posiciones, gano = _jugar_partida(rng, pesos, ganancia)
-        for clave, o, d in posiciones:
-            bucket = conteo.setdefault(clave, {})
-            registro = bucket.setdefault((o, d), [0, 0])
-            registro[1] += 1
-            if gano:
-                registro[0] += 1
-        if (i + 1) % 10 == 0 or i + 1 == partidas:
-            print(f"  {i + 1}/{partidas} partidas, {time.perf_counter() - inicio:.0f}s")
+    total = partidas_por_semilla * len(semillas)
+    hechas = 0
+    for semilla in semillas:
+        rng = random.Random(semilla)
+        for _ in range(partidas_por_semilla):
+            posiciones, gano = _jugar_partida(rng, pesos, ganancia)
+            for clave, o, d in posiciones:
+                bucket = conteo.setdefault(clave, {})
+                registro = bucket.setdefault((o, d), [0, 0])
+                registro[1] += 1
+                if gano:
+                    registro[0] += 1
+            hechas += 1
+            if hechas % 10 == 0 or hechas == total:
+                print(f"  {hechas}/{total} partidas, {time.perf_counter() - inicio:.0f}s")
 
     libro: dict[str, list[int]] = {}
     for clave, movimientos in conteo.items():
@@ -101,9 +112,10 @@ def generar_libro(partidas: int, semilla: int) -> dict[str, list[int]]:
 
 
 def main() -> None:
-    print(f"Generando {PARTIDAS} partidas de self-play (profundidad {PROFUNDIDAD}, "
-          f"primeras {PLIES_LIBRO} jugadas propias)...")
-    libro = generar_libro(PARTIDAS, SEMILLA)
+    total = PARTIDAS_POR_SEMILLA * len(SEMILLAS)
+    print(f"Generando {total} partidas de self-play (semillas: {SEMILLAS}; "
+          f"profundidad {PROFUNDIDAD}, primeras {PLIES_LIBRO} jugadas propias)...")
+    libro = generar_libro(PARTIDAS_POR_SEMILLA, SEMILLAS)
     print(f"{len(libro)} posiciones con jugada clara en el libro "
           f"(mínimo {MUESTRAS_MINIMAS} muestras, ventaja mínima {VENTAJA_MINIMA}).")
     destino = CARPETA_EQUIPO / "data" / "libro.json"
