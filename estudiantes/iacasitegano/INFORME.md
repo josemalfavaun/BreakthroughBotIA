@@ -23,7 +23,7 @@ el dado.
 
 - **Poda alfa-beta** en los nodos de decisión y **Star1** en los de azar: conocida la cota real
   de `evaluar()`, la rama "pierde" a veces no puede cambiar la decisión. Verificado contra una
-  búsqueda exhaustiva sin podar: mismo valor en todos los casos probados.
+  búsqueda exhaustiva sin podar: mismo valor siempre.
 - **Port a numba** sobre `int8[81]`, reusando los kernels de `motor/nucleo.py`: ~630 000
   nodos/s medidos. Sin esto no pasábamos de profundidad 3-4.
 - **Tabla de transposición**: arreglo de numpy, mapeo directo, "siempre reemplaza"; solo guarda
@@ -52,10 +52,9 @@ Lineal: `evaluar = PESOS · features`, siempre "propio menos rival":
 Los pesos no están puestos a mano: salen de mínimos cuadrados con regularización ridge sobre
 partidas de self-play (`herramientas/entrenar.py`) y están en `data/pesos.npy`.
 
-Intentamos mejorarlos y **no lo logramos**, midiendo (sección 8): cuatro barridos de la
-regularización con 100 partidas cada uno quedaron dentro del ruido de su control, y unos pesos
-reajustados sobre 1 621 partidas reales contra `montecarlo` midieron 98-102. Se entregan los
-de self-play.
+Intentamos mejorarlos y **no lo logramos** (sección 8): cuatro barridos de la regularización
+quedaron dentro del ruido de su control, y unos pesos reajustados sobre 1 621 partidas reales
+midieron 98-102. Se entregan los de self-play.
 
 ## 5. Precomputación (qué y cómo regenerarla)
 
@@ -65,10 +64,10 @@ de self-play.
 cd estudiantes/iacasitegano && python herramientas/entrenar.py
 ```
 
-Juega self-play (y contra `random`, `montecarlo` y dos rivales propios de `herramientas/`, para
-variar posiciones) a profundidad fija, guarda las características de cada jugada nuestra con el
-resultado final (+1/−1) y ajusta por ridge. Escribe un candidato `data/candidato_<fecha>.npy`;
-nunca pisa el campeón. ~2 h 37 min para 300 partidas a profundidad 5. No corre en la liga.
+Juega self-play (y contra `random`, `montecarlo` y dos rivales propios de `herramientas/`) a
+profundidad fija, guarda las características de cada jugada nuestra con el resultado final
+(+1/−1) y ajusta por ridge. Escribe un candidato `data/candidato_<fecha>.npy`; nunca pisa el
+campeón. ~2 h 37 min para 300 partidas a profundidad 5. No corre en la liga.
 
 `data/libro.json` — jugada recomendada para las primeras 4 jugadas propias, en posiciones donde
 self-play la vio ganar claramente más que la segunda opción:
@@ -79,7 +78,8 @@ cd estudiantes/iacasitegano && python herramientas/libro_apertura.py
 
 `strategy.jugar()` lo consulta primero y revalida que la jugada sea legal; nunca es
 obligatorio. El vigente es un libro mixto (blancas del candidato nuevo, negras del anterior),
-elegido con 80 partidas en dos semillas: 43-37, por la asimetría de color.
+elegido con 80 partidas en dos semillas (43-37, con 25-15 como blancas), por la asimetría de
+color; el detalle quedó en el informe al promoverlo.
 
 Los demás `.npy` de `data/` son checkpoints históricos que el runtime no carga.
 
@@ -96,7 +96,9 @@ eligió midiendo tres configuraciones.
 
 ## 7. Resultados vs random y montecarlo
 
-Contra `random`: ganamos siempre (40-0 en la tanda medida con Docker).
+Contra `random`: la validación de entrega juega 2 partidas (una con cada color) y las ganamos.
+No medimos una tanda grande contra `random` con este código: todo el esfuerzo de medición fue
+contra `montecarlo`, que es el rival que de verdad discrimina.
 
 Contra `montecarlo`, con el árbitro, 30 s por partida, alternando colores, 1 CPU por bot y
 semillas distintas por tanda. Intervalos de Wilson al 95 %:
@@ -119,7 +121,11 @@ anytime midió **53-47** en 100 partidas (53.0 %; IC 43.3 – 62.5 %), sin Docke
 La última fila es el bot exactamente como se entrega (semillas 8600-8609): 435 puntos,
 profundidad media 4.549, reloj máximo 18.2 s de 30 s y **cero timeouts, jugadas ilegales o
 excepciones**; las 200 partidas terminaron por puntos. Por color, blancas 45-55 y negras 50-50.
-Su intervalo se solapa con los anteriores: es la misma fuerza medida, no una caída.
+
+Ese mismo código, byte por byte, es el que midió **105-95** en la tanda de semillas 8000-8009
+(verificado comparando los archivos). Juntando las dos tandas: **200-200 en 400 partidas**, o
+sea **50.0 %** (IC 95 %: 45.1 – 54.9 %). El intervalo incluye el 50 %, así que lo que se puede
+afirmar es que el bot queda **a la par** de `montecarlo`, no por encima.
 
 Lo que esto **no** dice: nunca jugamos contra los Tiers ni contra otros equipos (son bots
 ocultos), así que no hay evidencia sobre el resultado de la liga.
@@ -131,13 +137,13 @@ rechazó con datos. Las partidas son contra `montecarlo`.
 
 | Intento | Qué se midió | Resultado |
 |---|---|---|
-| **Star2** (ventanas finas en nodos de azar) | 480 pruebas diferenciales contra expectiminimax exhaustivo; nodos a prof. 4-6; 200 partidas | Correcto, pero **0 % de ahorro de nodos** (conteos idénticos): la cota trivial `±ganancia` es ~15× el rango real de la eval, así que la ventana nunca corta. 103-97 |
+| **Star2** (ventanas finas en nodos de azar) | 480 pruebas diferenciales contra expectiminimax exhaustivo; nodos a prof. 4-6; 200 partidas | Correcto pero con **0 % de ahorro de nodos** (conteos idénticos): la cota trivial `±ganancia` es ~15× el rango real de la eval y la ventana nunca corta. 103-97 |
 | **Orden de jugadas** | nodos a prof. 4-6; 200 partidas | Ahorra 70/76/83 % de nodos pero cuesta ~8× por nodo (la prioridad se recalcula en cada nodo): **85-115** y menos profundidad (4.6 contra 5.2-5.5) |
 | **Rollouts en la raíz** (Monte Carlo con probabilidad exacta) | 50 posiciones de final contra una búsqueda de referencia | Aciertan la mejor de 4 candidatas el **36 %** contra el **76 %** de la búsqueda; donde la búsqueda empata, 44 % contra 78 % |
 | **Pesos reajustados con partidas reales** | 1 621 partidas, 160 234 posiciones, partición por partida; 200 partidas | Mejor exactitud de signo en el retenido, pero **98-102** (49.0 %; IC 42.2-55.9), y se especializarían en `montecarlo` |
 | **Barrido de la regularización ridge** | 4 configuraciones × 100 partidas, cada una contra su control | 46-54 (45-55), 48-52 (47-53), 47-53 (41-59), 44-56 (51-49): ninguna gana |
-| **`ventaja_carrera_exacta`** (tabla 1v1 como característica) | 40 partidas | **3-37**. El peso aprendido salió negativo, señal de alerta antes de medir |
-| **Tablas exactas de finales** (1v1, 2v1, 1v2) | simetría sobre 92 178 estados, cross-check con solver independiente; 80 partidas | Correctas, pero **0 de 80 partidas llegaron a ese material**. No se entregan |
+| **`ventaja_carrera_exacta`** (tabla 1v1 como característica) | 40 partidas, sin Docker | **3-37**. El peso aprendido salió negativo, señal de alerta antes de medir. Muestra chica, pero el margen es enorme |
+| **Tablas exactas de finales** (1v1, 2v1, 1v2) | simetría sobre 92 178 estados, cross-check con solver independiente; 80 partidas | **0 de 80 partidas llegaron a ese material**. No se entregan |
 | **Quiescencia** en las hojas | A/B en partidas | Mismas victorias, menos puntos. Desactivada |
 | **Arreglar la tabla de transposición** | 200 partidas | Correcto y necesario, pero **94-106**: sin mejora en el marcador |
 
