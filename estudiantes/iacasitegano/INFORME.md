@@ -90,8 +90,9 @@ resto, cada jugada arranca con `1/16` de lo disponible, escalado entre 0.5× y 2
 fracción de las jugadas legales son ataques (más ataques = posición más táctica). Dentro de ese
 presupuesto manda el anytime de la sección 3. Sin tiempo, se juega una legal al azar.
 
-Medido con el árbitro en 400 partidas: reloj máximo nuestro **17.98 s de 30 s**, cero timeouts,
-cero jugadas ilegales. El reparto `0.5/2.0/16` se eligió midiendo tres configuraciones.
+Medido en las 200 partidas del bot tal como se entrega: reloj medio **14.3 s**, p95 16.7 s y
+máximo **18.2 s de 30 s**, con cero timeouts y cero jugadas ilegales. El reparto `0.5/2.0/16` se
+eligió midiendo tres configuraciones.
 
 ## 7. Resultados vs random y montecarlo
 
@@ -106,17 +107,19 @@ semillas distintas por tanda. Intervalos de Wilson al 95 %:
 | Búsqueda anytime | 400 | 199-201 | 49.8 % | 44.9 – 54.6 % |
 | Anytime + progreso parcial de raíz | 200 | 105-95 | 52.5 % | 45.6 – 59.3 % |
 | La misma, otras dos tandas | 200 y 200 | 103-97 y 94-106 | 51.5 % y 47.0 % | 44.6 – 58.3 y 40.2 – 53.9 |
+| **Bot tal como se entrega** | 200 | 95-105 | **47.5 %** | 40.7 – 54.4 % |
 
 El salto de **20 % a ~50 %** viene de una sola cosa: que la búsqueda use el presupuesto de
-reloj que ya tenía disponible. Las tres tandas de 200 partidas de la variante final (105, 103 y
-94 victorias) tienen intervalos que se solapan entre sí: **no afirmamos que ninguna sea mejor
-que las otras**; con 200 partidas el margen es de ±7 puntos.
+reloj que ya tenía. Los intervalos de las tandas de 200 se solapan entre sí: **no afirmamos que
+ninguna sea mejor que otra**; a ese tamaño el margen es de ±7 puntos.
 
 Contra un `montecarlo` más fuerte preparado por nosotros (`noche_montecarlo_fuerte`), el bot
 anytime midió **53-47** en 100 partidas (53.0 %; IC 43.3 – 62.5 %), sin Docker.
 
-**[REVISAR]** La medición del bot exactamente como se entrega (200 partidas, semillas 8600) se
-corre al cerrar esta entrega; cuando esté, su resultado va aquí.
+La última fila es el bot exactamente como se entrega (semillas 8600-8609): 435 puntos,
+profundidad media 4.549, reloj máximo 18.2 s de 30 s y **cero timeouts, jugadas ilegales o
+excepciones**; las 200 partidas terminaron por puntos. Por color, blancas 45-55 y negras 50-50.
+Su intervalo se solapa con los anteriores: es la misma fuerza medida, no una caída.
 
 Lo que esto **no** dice: nunca jugamos contra los Tiers ni contra otros equipos (son bots
 ocultos), así que no hay evidencia sobre el resultado de la liga.
@@ -130,8 +133,8 @@ rechazó con datos. Las partidas son contra `montecarlo`.
 |---|---|---|
 | **Star2** (ventanas finas en nodos de azar) | 480 pruebas diferenciales contra expectiminimax exhaustivo; nodos a prof. 4-6; 200 partidas | Correcto, pero **0 % de ahorro de nodos** (conteos idénticos): la cota trivial `±ganancia` es ~15× el rango real de la eval, así que la ventana nunca corta. 103-97 |
 | **Orden de jugadas** | nodos a prof. 4-6; 200 partidas | Ahorra 70/76/83 % de nodos pero cuesta ~8× por nodo (la prioridad se recalcula en cada nodo): **85-115** y menos profundidad (4.6 contra 5.2-5.5) |
-| **Rollouts en la raíz** (Monte Carlo con probabilidad exacta) | 50 posiciones de final contra una búsqueda de referencia | La tasa de rollouts acierta la mejor de 4 candidatas el **36 %** contra el **76 %** del valor de la búsqueda; incluso donde la búsqueda empata, 44 % contra 78 % |
-| **Pesos reajustados con partidas reales** | 1 621 partidas, 160 234 posiciones, partición por partida; 200 partidas | Mejor exactitud de signo en el conjunto retenido, pero **98-102** (49.0 %; IC 42.2-55.9). Se especializarían en `montecarlo`, y la liga es contra bots ocultos |
+| **Rollouts en la raíz** (Monte Carlo con probabilidad exacta) | 50 posiciones de final contra una búsqueda de referencia | Aciertan la mejor de 4 candidatas el **36 %** contra el **76 %** de la búsqueda; donde la búsqueda empata, 44 % contra 78 % |
+| **Pesos reajustados con partidas reales** | 1 621 partidas, 160 234 posiciones, partición por partida; 200 partidas | Mejor exactitud de signo en el retenido, pero **98-102** (49.0 %; IC 42.2-55.9), y se especializarían en `montecarlo` |
 | **Barrido de la regularización ridge** | 4 configuraciones × 100 partidas, cada una contra su control | 46-54 (45-55), 48-52 (47-53), 47-53 (41-59), 44-56 (51-49): ninguna gana |
 | **`ventaja_carrera_exacta`** (tabla 1v1 como característica) | 40 partidas | **3-37**. El peso aprendido salió negativo, señal de alerta antes de medir |
 | **Tablas exactas de finales** (1v1, 2v1, 1v2) | simetría sobre 92 178 estados, cross-check con solver independiente; 80 partidas | Correctas, pero **0 de 80 partidas llegaron a ese material**. No se entregan |
