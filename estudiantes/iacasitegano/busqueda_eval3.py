@@ -189,17 +189,6 @@ def _ordenar_jugadas_numba(tablero, color, origenes, destinos, n, origen_sugerid
             destinos[i], destinos[mejor] = destinos[mejor], destinos[i]
 
 
-# `contador` (int64[2]) y `tope` cierran las dos firmas: ver `_valor_numba`.
-_FIRMA_VALOR = (
-    "float64(int8[::1], int64[::1], int64, int64, int64, float64, float64, float64[::1], float64,"
-    " int64[::1], int64[::1], uint64[::1], float64[::1], int64[::1], int64)"
-)
-_FIRMA_QUIESCENCIA = (
-    "float64(int8[::1], int64[::1], int64, int64, float64, float64, float64[::1], float64, int64,"
-    " int64[::1], int64[::1], int64[::1], int64)"
-)
-
-
 # Quiescencia: en la hoja (profundidad 0), si todavía hay ataques disponibles, el eval
 # estático puede estar "a medio combate" (ignora que la jugada siguiente puede ganar o
 # perder una pieza). Sigue SOLO los ataques (nunca jugadas tranquilas) unos turnos más,
@@ -214,7 +203,7 @@ _FIRMA_QUIESCENCIA = (
 # función se reduce exactamente al eval estático de antes: el mecanismo queda listo y
 # validado (ver pruebas diferenciales) por si en el futuro, con más profundidad
 # disponible o features distintas, sí compensa — pero no se activa sin medirlo de nuevo.
-@njit(_FIRMA_QUIESCENCIA, cache=True)
+@njit(cache=True)
 def _quiescencia_numba(tablero, puntos, color, objetivo, alfa, beta, pesos, ganancia, restante,
                         origenes, destinos, contador, tope):
     if puntos[0] >= PUNTOS_PARA_GANAR:
@@ -292,12 +281,11 @@ def _quiescencia_numba(tablero, puntos, color, objetivo, alfa, beta, pesos, gana
     return mejor
 
 
-# Una sola función auto-recursiva (no dos que se llaman entre sí): numba sabe inferir
-# bien la recursión de una función consigo misma con firma explícita, pero no la
-# recursión mutua entre dos funciones separadas ("cannot type infer runaway
-# recursion"). La lógica de cada jugada (una o dos ramas de azar, con la poda Star1
+# Una sola función auto-recursiva (no dos que se llaman entre sí): numba infiere la
+# especialización al primer uso desde `preparar()` (después de copiar el caché), evitando
+# compilarla al importar el módulo. La lógica de cada jugada (una o dos ramas de azar, con la poda Star1
 # que acota la rama que no hace falta ver) va en línea, dentro del ciclo por jugada.
-@njit(_FIRMA_VALOR, cache=True)
+@njit(cache=True)
 def _valor_numba(tablero, puntos, color, objetivo, profundidad, alfa, beta, pesos, ganancia,
                   origenes, destinos, tt_claves, tt_valores, contador, tope):
     """`contador` es un arreglo de 2: `contador[0]` nodos visitados, `contador[1]` bandera
