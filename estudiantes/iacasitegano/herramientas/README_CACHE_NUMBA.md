@@ -49,3 +49,18 @@ sin firma explícita para que Numba no los compile al importar `busqueda_eval3.p
 equipo no puede copiar su caché hasta `strategy.preparar()`. `busqueda_eval3.calentar()`
 los compila o carga después de esa copia. No vuelvas a declararles una firma explícita
 sin mover la copia antes de importar la estrategia en el runner.
+
+## Verificación automatizada de `preparar()`
+
+Después de regenerar el caché, desde la raíz ejecuta:
+
+```sh
+nice -n 19 python3 -B estudiantes/iacasitegano/herramientas/verificar_preparar_cache.py
+```
+
+Por defecto lanza 20 contenedores de prueba, en grupos de 7 concurrentes, cada uno con
+0.5 CPU y 1024 MiB. El test monta el equipo exactamente en `/bot`, oculta el volumen
+compartido del motor, verifica por el flujo oficial de `runner` y falla si alguna
+preparación falla o si importación + `preparar()` llega a 10 s. Ajusta muestras con
+`--repeticiones`, concurrencia con `--workers`, cuota con `--cpu` y el límite con
+`--limite`. La salida incluye p50, p95 y máximo.
