@@ -1,4 +1,4 @@
-"""Genera partidas de self-play (y partidas contra `random`/`montecarlo`, para
+"""Genera partidas de self-play y partidas contra rivales no triviales, para
 variar las posiciones que vemos) con nuestra propia búsqueda, y ajusta los
 `PESOS` de `eval.py` por regresión lineal (con un poco de regularización)
 contra el resultado final de cada partida. Guarda el resultado como un
@@ -54,10 +54,9 @@ RELOJ_RIVAL_S = 30.0  # reloj "de a de veras" para random/montecarlo, igual que 
 # Fracción de partidas contra cada rival (adentro, siempre jugamos nosotros con nuestra búsqueda).
 OPONENTES = {
     "uno_mismo": 0.5,
-    "random": 0.2,
     "montecarlo": 0.2,
-    "voraz": 0.05,
-    "minimax2": 0.05,
+    "voraz": 0.15,
+    "minimax2": 0.15,
 }
 RIVALES_LOCALES = {
     "voraz": CARPETA_EQUIPO / "herramientas" / "rival_voraz.py",
