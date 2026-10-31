@@ -1,0 +1,223 @@
+{
+  "main": {
+    "id": "a546a0fa4439e172",
+    "type": "split",
+    "children": [
+      {
+        "id": "d2e571fd6f42b618",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "c2495eeb0f1a70a3",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Graph view"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "bf562548df0e0c17",
+    "type": "split",
+    "children": [
+      {
+        "id": "af76c194f0612f5c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "59177ad54777aa79",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "e30ddb594e7028d8",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "4b5b000a7a595346",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "5ade015a6e3c73ae",
+    "type": "split",
+    "children": [
+      {
+        "id": "2ea423741b4b1515",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "2a22655745e6e701",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks"
+            }
+          },
+          {
+            "id": "940bf1ec05277294",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links"
+            }
+          },
+          {
+            "id": "a3cb3a17037ea77b",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "5b8fe2438c86c838",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "30a4601122a3b4f6",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "c2495eeb0f1a70a3",
+  "lastOpenFiles": [
+    "estudiantes/iacasitegano/herramientas/__pycache__/fase5_uct14h_worker.cpython-314.pyc",
+    "resultados/medicion/fase5_uct14h_20261030/CONTROL_FINAL.json",
+    "estudiantes/iacasitegano/herramientas/Dockerfile.uct14h",
+    "estudiantes/iacasitegano/herramientas/__pycache__/fase5_uct14h_controller.cpython-314.pyc",
+    "resultados/medicion/fase5_uct14h_20261030/K8S_STATUS.json",
+    "resultados/medicion/fase5_uct14h_20261030/controller.pid",
+    "resultados/medicion/fase5_uct14h_20261030/controller.log",
+    "obsidian/Experimentos/2026-10-30-UCT14h.md",
+    "resultados/medicion/fase5_uct14h_20261030/CONTROL.json",
+    "resultados/medicion/fase5_uct14h_20261030/job.yaml",
+    "resultados/medicion/fase5_uct14h_20261030",
+    "estudiantes/iacasitegano/herramientas/fase5_uct14h_controller.py",
+    "TRANSCRIPCION_COMPLETA_CHAT_BREAKTHROUGHBOTIA.md",
+    "resultados/medicion/fase5_validacion_S13_64_20261029/RESULTADOS.md",
+    "obsidian/Experimentos/2026-10-29-Fase8B2-runtime.md",
+    "resultados/medicion/fase8B2_runtime_20261029/CIERRE_8B2.md",
+    "resultados/medicion/fase8B2_runtime_20261029/LEEME.md",
+    "resultados/medicion/fase8B2_runtime_20261029/paquete_exportado_01/estudiantes/iacasitegano/INFORME.md",
+    "obsidian/Experimentos/2026-10-29-S13-validacion-nueva.md",
+    "resultados/medicion/fase5_validacion_S13_64_20261029/LEEME.md",
+    "resultados/medicion/fase5_validacion_S13_64_20261029/PROTOCOLO.md",
+    "resultados/medicion/fase8B2_runtime_20261029/regresion_01/estudiantes/iacasitegano/INFORME.md",
+    "resultados/medicion/fase8B2_runtime_20261029/staging_sin_cache_01/estudiantes/iacasitegano/INFORME.md",
+    "resultados/medicion/fase8B2_runtime_20261029/PROTOCOLO.md",
+    "obsidian/Experimentos/2026-10-29-Diagnostico-replay256-y-S13.md",
+    "resultados/medicion/fase5_subespacio13_20261029/RESULTADOS.md",
+    "resultados/medicion/fase5_diagnostico_replay256_20261029/RESULTADOS.md",
+    "obsidian/2026-10-29-Encargo-Codex-fase8B2.md",
+    "resultados/medicion/fase5_subespacio13_20261029/PROTOCOLO.md",
+    "resultados/medicion/fase5_diagnostico_replay256_20261029/PROTOCOLO.md",
+    "resultados/medicion/fase5_lote256_mac_20261029/RESULTADOS.md",
+    "obsidian/Experimentos/2026-10-29-Fase8B1-paquete.md",
+    "resultados/medicion/fase8B1_paquete_20261029/CIERRE_8B1.md",
+    "resultados/medicion/fase8B1_paquete_20261029/LEEME.md",
+    "resultados/medicion/fase8B1_paquete_20261029/8B2_PENDIENTE.md",
+    "resultados/medicion/fase8B1_paquete_20261029/pruebas_constructor/paquete_repetido/estudiantes/iacasitegano/INFORME.md"
+  ]
+}

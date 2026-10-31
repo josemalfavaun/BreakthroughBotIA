@@ -52,6 +52,13 @@ sin mover la copia antes de importar la estrategia en el runner.
 
 ## Verificación automatizada de `preparar()`
 
+La prueba de regresión de una instancia fría verifica que importación + `preparar()`
+terminen antes del límite de 10 s:
+
+```sh
+nice -n 19 python3 -B estudiantes/iacasitegano/herramientas/test_preparar_cache_docker.py
+```
+
 Después de regenerar el caché, desde la raíz ejecuta:
 
 ```sh

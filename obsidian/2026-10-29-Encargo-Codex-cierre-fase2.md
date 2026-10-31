@@ -1,0 +1,14 @@
+# Encargo para Codex — certificar cierre de fase 2
+
+Trabaja en `/Users/josema/vs code/BreakthroughBotIA`. Lee AGENTS.md, obsidian/01-Estado.md, la sección de fase2 del plan y obsidian/Experimentos/2026-10-28-TT-pistas-internas.md. Usa rtk y conserva todos los cambios existentes. No hagas commit, merge, push ni promoción.
+
+Objetivo: dejar certificado el cierre de fase2 con evidencia existente. El candidato de pistas TT YA terminó y fue rechazado: ratio mediano B/A0.982591 frente al filtro≤0.95, diferencia máxima de valor0,1200 búsquedas. No reabras el experimento ni cambies el umbral para aceptarlo. Un cierre puede conservar la base si la mejora no pasa.
+
+1. Registra rama/HEAD/status y localiza el directorio real de los artefactos: la nota enlaza `/Users/josema/vs code/BreakthroughBotIA-codex/resultados/medicion/fase2_tt_pistas_20261028/`; el candidato también tiene worktree en `.codex/worktrees/2559/BreakthroughBotIA-codex`. Comprueba existencia y contenido, no des por válidas rutas antiguas.
+2. Audita protocolo previo, antes.json, resumen.json, pares/fases CSV, MANIFIESTO_FINAL.json y comprobaciones de corrección. Recalcula recuentos y hashes con herramientas de auditoría; comprueba ratio global y por fase. Identifica explícitamente A/control corregido, candidato de pistas y principal P, con SHA de fuente y pesos.
+3. Verifica que el candidato rechazado no fue integrado al principal. Distingue el cierre del ordenamiento de la corrección TT pendiente de integración: P tiene defectos TT reproducidos y A contiene la corrección. Registra las regresiones y el parche exacto como requisito de fase8; no integres nada en esta tarea ni declares que P heredó la corrección.
+4. Si falta evidencia imprescindible, reconstruye únicamente el resumen desde datos crudos o ejecuta una comprobación de corrección delimitada. No repitas las1200 búsquedas cronometradas, no lances liga, no uses reservas ni consumas CPU pesada mientras el otro chat trabaja fase5/Kubernetes. Si excepcionalmente necesitas medir tiempos, deja una petición concreta de ventana exclusiva; no mates ni pauses sus contenedores.
+5. Crea `resultados/medicion/cierre_fase2_20261029/CIERRE.md` y `auditoria.json` con archivos reales/hashes, métricas, decisión, límites y pendientes de fase8. No copies grandes artefactos si bastan referencias verificadas. Si hay una carencia real, marca esa carencia en vez de declarar cierre completo.
+6. Actualiza solo la nota de fase2 y el certificado. Evita editar 01-Estado,03-Bitacora y07-Plan-definitivo simultáneamente: el chat de fase5 los está actualizando; entrega el párrafo breve de traspaso en tu CIERRE.md para que lo integremos después.
+
+Entrega: estado cerrado/rechazado o carencia concreta, evidencias auditadas, identidad de versiones, principal intacto, separación entre fase2 cerrada e integración TT de fase8. No empieces fase6 automáticamente.

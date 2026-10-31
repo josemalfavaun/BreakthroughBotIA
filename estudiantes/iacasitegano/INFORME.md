@@ -124,6 +124,23 @@ contra la versión anterior de los pesos, reportando victorias y puntos de cada 
 que "se ve mejor" no fue suficiente dos veces esta sesión (ver 8b) — todo cambio se mide con
 partidas completas, no se acepta a ojo.
 
+**Caché Numba horneado:** los kernels de `eval3.py` y `busqueda_eval3.py` se compilan con la
+imagen oficial `torneo-bot-base:local` y se guardan en `data/numba_cache/`. Como el árbitro crea
+un contenedor por partida, `strategy.preparar()` valida el manifiesto de fuentes y ABI y copia
+los archivos al `NUMBA_CACHE_DIR` privado antes de calentar la búsqueda. Un caché incompatible
+se descarta y Numba compila desde el código actual; no se cargan silenciosamente kernels viejos.
+Para regenerarlo tras cambios en las fuentes o en el entorno, sigue
+`herramientas/README_CACHE_NUMBA.md`.
+
+La comprobación final con árbitro real fue de 20 partidas contra `montecarlo` (semilla
+20261030): 10–10, todas terminaron por puntos y no hubo fallos de `preparar`, jugadas ilegales,
+excepciones ni timeouts. La prueba fría de 20 preparaciones, 7 contenedores concurrentes, 0.5
+CPU y 1024 MiB dio p50 0.063 s, p95 0.097 s y máximo 0.124 s de importación más `preparar()`;
+el máximo dejó 9.876 s del límite de 10 s. La regresión automatizada de una instancia está en
+`herramientas/test_preparar_cache_docker.py`; la medición fría concurrente se repite con
+`herramientas/verificar_preparar_cache.py`. El detalle de esta medición quedó en el registro
+externo de robustez del laboratorio.
+
 ## 6. Manejo del reloj
 Reserva fija del 30 % del reloj (igual que el bot de referencia). Una jugada forzada (una sola
 legal) se juega sin pensar, sin gastar nada de reloj. Del resto, cada jugada arranca con un

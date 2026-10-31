@@ -1,0 +1,11 @@
+# Próximo encargo: fase 2 de ordenamiento TT
+
+Lee `obsidian/07-Plan-definitivo.md` y la sección técnica de fase 2 de `obsidian/05-Cierre-de-fases.md` en `/Users/josema/vs code/BreakthroughBotIA`. La serie de utilidad terminó: 164 JSON válidos verificados, B 48/80 vs A 41/80, +7 frente al requisito +8. Cierra esa versión sin promover, ampliar muestra ni ejecutar reservas. Conserva todos sus archivos.
+
+Tu siguiente tarea es implementar y evaluar **solo pistas de jugada TT en nodos internos**, desde el control A con TT corregida. Inspecciona primero estado de Git, procesos y tareas ajenas. No pauses aplicaciones ajenas. Reutiliza un worktree adecuado o crea uno aislado desde la base identificada, preservando la corrección local no comprometida de A: crear desde HEAD a secas no la copia. Registra hashes y diferencias exactas antes de editar. No cambies pesos, utilidad, reloj, hojas, buffers ni libro.
+
+La tabla exacta ya retorna en sus aciertos. Diseña pistas separadas de valores, útiles en nodos con cotas; jamás conviertas una cota en valor exacto. Incluye clave completa, legalidad, colisiones, abortos y costo de memoria. Primero corrección por oráculo y regresiones TT existentes. Después congela panel de 60 posiciones reales, 20 por fase con regla documentada; cinco repeticiones A/B y B/A de igual profundidad completa. Mide tiempo total, nodos, consultas/pistas efectivamente utilizadas/cortes y costo de crear tablas.
+
+Filtro técnico prefijado: cero diferencias de valor fuera de tolerancia fijada, mediana tiempo candidato/control ≤0.95 y ninguna fase con mediana >1.05. Si falla, cerrar y documentar sin jugar una liga costosa. Si pasa, entrega un protocolo de partidas oficiales con muestra/criterio/semillas nuevas verificadas antes de ejecutarlas. No consumas reservas 20261102–04 ni 20261111–14. No improvises un umbral de victorias después de ver partidas.
+
+Guarda progreso recuperable, JSON/CSV, manifiesto y resumen reproducible por fase. Puedes ejecutar pruebas técnicas en una ventana exclusiva cuando no haya otra carga pesada; coordina antes de una tanda oficial. No hagas commit, merge, push, promociones o reemplazo del principal. Actualiza solo la nota de tu experimento y reporta qué queda pendiente; el chat director mantiene el plan/estado global.

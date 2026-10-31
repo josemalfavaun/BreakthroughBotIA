@@ -1,6 +1,10 @@
 # Plan de trabajo para llevar `iacasitegano` hacia Tier 5
 
+> Estado y alcance revisados el 2026-10-28: ver [registro de cierre de fases](obsidian/05-Cierre-de-fases.md). Fases 0/1 cerradas para el baseline evaluado; Star2 e híbrido cerrados sin incorporar sus versiones probadas; fase 2 reabierta para pistas TT; 5/6/7 pendientes. Los protocolos específicos congelados antes de cada experimento fijan su muestra y criterio; las tandas genéricas de abajo son la guía histórica y no cambian criterios a posteriori. El modelo activo es `data/pesos_eval3_ligero.npz`, no `pesos.npy`.
+
 ## Objetivo
+
+Plan operativo vigente autorizado el 28 de octubre: [Plan definitivo](obsidian/07-Plan-definitivo.md). Incorpora fases 8/9, profesor offline, regresión ridge y ajuste genético acotado. Utilidad 5A terminó +7 frente al requisito +8 y no se promueve. Las tandas genéricas posteriores son historial/guía; cada experimento nuevo congela protocolo antes de medir.
 
 Mejorar `estudiantes/iacasitegano/` hasta competir por la calificación 10. La calificación máxima se obtiene si el equipo termina por encima de Tier 5 en puntos de liga o queda entre los tres primeros equipos de alumnos. No se debe asumir que una técnica garantiza ese resultado: cada cambio se conserva solo después de medirlo en partidas completas.
 
@@ -20,7 +24,7 @@ El informe existente documenta victorias contra `random`, pero el resultado cont
 - Leer antes de trabajar: `README.md`, `docs/reglas.md`, `docs/calificacion.md`, `docs/avanzado.md` y `estudiantes/iacasitegano/INFORME.md`.
 - Cambiar solo `estudiantes/iacasitegano/` cuando el cambio sea para el participante.
 - No modificar `sistema/`, el árbitro, el motor oficial, workflows, otros equipos ni documentos del curso para obtener ventaja.
-- No usar redes neuronales ni librerías como `torch`, `tensorflow`, `keras`, `jax` u `onnxruntime`.
+- En la liga no usar redes neuronales ni librerías como `torch`, `tensorflow`, `keras`, `jax` u `onnxruntime`. Offline las reglas permiten cualquier herramienta; entregar solo un modelo legal, legible y reproducible.
 - No usar red, manipular dados, adivinar semillas, escribir fuera de `data/` durante una partida, persistir entre partidas ni ofuscar código.
 - Respetar 30 s de reloj por partida, 10 s para preparación e importación, 1 núcleo, 1024 MB de memoria, 100 MB por carpeta y 50 MB por archivo.
 - Mantener una jugada legal de respaldo y margen de reloj en todos los caminos de error.
