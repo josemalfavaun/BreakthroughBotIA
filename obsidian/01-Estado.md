@@ -19,7 +19,7 @@ P búsqueda SHA `ceba365326e5ba8dd102218843f2b92744738d9c8a18db000f9edbc188832b7
 
 ## Corrida UCT de 14 horas preparada
 
-Preparada pero todavía no iniciada: [[Experimentos/2026-10-30-UCT14h]]. El controlador `estudiantes/iacasitegano/herramientas/fase5_uct14h_controller.py` orquesta un Job Kubernetes paralelo contra UCT4096 exclusivamente, registra decisiones y, al completar 840 minutos, ejecuta ajuste/validación interna en una salida nueva. No sustituye pesos ni abre test o liga. Antes de afirmar inicio, comprobar `CONTROL.json`, `job.yaml` y `controller.log` en `resultados/medicion/fase5_uct14h_20261030/`.
+En ejecución: [[Experimentos/2026-10-30-UCT14h]]. El último Job observado es `uct14h-6a3e0894`, con 8/8 pods `Running`. El controlador `estudiantes/iacasitegano/herramientas/fase5_uct14h_controller.py` orquesta UCT4096 exclusivamente, registra decisiones y, al completar 840 minutos, ejecuta ajuste/validación interna en una salida nueva. No sustituye pesos ni abre test o liga. Los resultados vivos permanecen ignorados por Git; al cierre se añadirá un resumen reproducible.
 
 ## Fase5 en curso
 
